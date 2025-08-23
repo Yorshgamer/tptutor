@@ -1,0 +1,12 @@
+@import "tailwindcss";
+
+/* Layout full height */
+html, body, #root { height: 100%; }
+
+/* Tema claro por defecto */
+:root { color-scheme: light; }
+
+body {
+  background: #f8fafc;   /* slate-50 */
+  color: #0f172a;        /* slate-900 */
+}
