@@ -1,73 +1,29 @@
-import React, { useEffect, useState } from "react";
-import axios from "axios";
-
-function App() {
-  const [text, setText] = useState("");
-  const [questions, setQuestions] = useState([]);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState("");
-  const [message, setMessage] = useState("");
-
-  useEffect(() => {
-    fetch("http://localhost:5000/api/hello")
-      .then((res) => res.json())
-      .then((data) => setMessage(data.message))
-      .catch((err) => console.error(err));
-  }, []);
-
-  const handleGenerateQuestions = async () => {
-    if (!text.trim()) {
-      setError("Por favor, ingresa un texto.");
-      return;
-    }
-
-    setError("");
-    setLoading(true);
-
-    try {
-      const response = await axios.post(
-        "http://localhost:3000/generate-questions",
-        { text }
-      );
-      setQuestions(response.data.questions || []);
-    } catch (err) {
-      setError("Error al generar preguntas. Intenta nuevamente.");
-    } finally {
-      setLoading(false);
-    }
-  };
-
+export default function App() {
+  const dark = document.documentElement.classList.contains('dark');
   return (
-    <div className="App" style={{ textAlign: "center", marginTop: "50px" }}>
-      <h1>Frontend con React+Vite</h1>
-      <p>Mensaje del backend: {message}</p>
-      <h1>Tutor Virtual de Lectura Crítica</h1>
-      <textarea
-        placeholder="Ingresa el texto aquí..."
-        value={text}
-        onChange={(e) => setText(e.target.value)}
-        rows="6"
-        cols="50"
-      />
-      <br />
-      <button onClick={handleGenerateQuestions} disabled={loading}>
-        {loading ? "Generando..." : "Generar Preguntas"}
-      </button>
-      {error && <p style={{ color: "red" }}>{error}</p>}
-      <div>
-        <h2>Preguntas Generadas:</h2>
-        {questions.length > 0 ? (
-          <ul>
-            {questions.map((question, index) => (
-              <li key={index}>{question}</li>
-            ))}
-          </ul>
-        ) : (
-          <p>No hay preguntas generadas aún.</p>
-        )}
-      </div>
+    <div className="min-h-screen p-6">
+      <header className="flex items-center justify-between border-b dark:border-slate-800 pb-4 mb-6">
+        <h1 className="text-xl font-semibold">TP2 — Frontend</h1>
+        <button
+          onClick={() => {
+            const v = !document.documentElement.classList.contains('dark');
+            document.documentElement.classList.toggle('dark', v);
+            localStorage.setItem('theme-mode', v ? 'dark' : 'light');
+          }}
+          className="rounded-2xl px-4 py-2 bg-primary text-white hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2"
+        >
+          {dark ? '🌙 Oscuro' : '☀️ Claro'}
+        </button>
+      </header>
+
+      <main className="space-y-4">
+        <div className="flex gap-3">
+          <span className="px-3 py-2 rounded-2xl bg-primary text-white">Primario</span>
+          <span className="px-3 py-2 rounded-2xl bg-accent text-black">Acento</span>
+          <span className="px-3 py-2 rounded-2xl bg-slate-200 text-black">Claro</span>
+          <span className="px-3 py-2 rounded-2xl bg-slate-800 text-white">Oscuro</span>
+        </div>
+      </main>
     </div>
   );
 }
-
-export default App;
