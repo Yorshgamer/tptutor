@@ -1,10 +1,9 @@
+import React from "react";
 import { Link } from "react-router-dom";
 
-type Props = { onToggleSidebar: () => void };
-
-export default function Header({ onToggleSidebar }: Props) {
+export default function Header({ onToggleSidebar }: { onToggleSidebar: () => void }) {
   return (
-    <header className="sticky top-0 z-20 bg-gradient-to-r from-primary to-blue-700 text-white shadow-md">
+    <header className="sticky top-0 z-20 bg-gradient-to-r from-blue-500 to-blue-700 text-white shadow-md">
       <div className="mx-auto max-w-6xl px-4 py-3 flex items-center justify-between">
         <button
           aria-label="Abrir menú"
@@ -18,9 +17,7 @@ export default function Header({ onToggleSidebar }: Props) {
           TP2 — Tutor de lectura crítica
         </Link>
 
-        <div className="hidden md:block text-sm opacity-90">
-          {/* espacio para acciones futuras */}
-        </div>
+        <div className="hidden md:block text-sm opacity-90" />
       </div>
     </header>
   );
