@@ -14,25 +14,10 @@ const NotFound = () => (
 );
 
 export const router = createBrowserRouter([
-  {
-    path: "/",
-    element: <Layout><Home /></Layout>,
-  },
-  {
-    path: "/projects",
-    element: <Layout><Projects /></Layout>,
-  },
-  {
-    path: "/tutor",
-    element: <Layout><Tutor /></Layout>,
-  },
-  {
-    path: "/login",
-    element: <Layout><Login /></Layout>,
-  },
-  {
-    path: "/register",
-    element: <Layout><Register /></Layout>,
-  },
-  { path: "*", element: <Layout><NotFound /></Layout> },
+  { path: "/", element: <Layout><Home/></Layout> },
+  { path: "/projects", element: <Layout><Projects/></Layout> },
+  { path: "/tutor", element: <Layout><Tutor/></Layout> },
+  { path: "/login", element: <Layout><Login/></Layout> },
+  { path: "/register", element: <Layout><Register/></Layout> },
+  { path: "*", element: <Layout><NotFound/></Layout> },
 ]);
