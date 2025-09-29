@@ -1,61 +1,92 @@
-import React from "react";
+import React, { useState } from "react";
 import Card from "../components/Card";
 import Tag from "../components/Tag";
 import Button from "../components/Button";
 
+interface QAResult {
+  question: string;
+  answer: string;
+}
+
 export default function Projects() {
+  const [text, setText] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [results, setResults] = useState<QAResult[]>([]);
+  const [error, setError] = useState<string | null>(null);
+
+  const handleGenerate = async () => {
+    if (!text.trim()) return;
+    setLoading(true);
+    setError(null);
+    setResults([]);
+
+    try {
+      const resp = await fetch("/api/generate-qa", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ text }),
+      });
+
+      const data: QAResult[] = await resp.json();
+      if (!resp.ok) throw new Error((data as any).error || "Error en la API");
+
+      setResults(data);
+    } catch (err: unknown) {
+      if (err instanceof Error) {
+        setError(err.message);
+      } else {
+        setError("Error desconocido");
+      }
+    } finally {
+      setLoading(false);
+    }
+  };
+
   return (
     <div className="space-y-6">
-      <Card title="Proyectos" subtitle="Filtra y crea proyectos">
-        <div className="flex flex-wrap items-center gap-3">
-          <div className="relative">
-            <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-slate-400">🔎</span>
-            <input
-              className="pl-9 rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-600"
-              placeholder="Buscar…"
-            />
-          </div>
-          <select className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-600">
-            <option>Todos</option><option>En curso</option><option>Completado</option><option>Pendiente</option>
-          </select>
-          <div className="ml-auto">
-            <Button variant="secondary">➕ Nuevo proyecto</Button>
-          </div>
+      <Card title="Generador de Preguntas" subtitle="Sube un texto y obtén preguntas con sus respuestas">
+        <textarea
+          value={text}
+          onChange={(e) => setText(e.target.value)}
+          className="w-full rounded-xl border border-slate-200 p-3 text-sm focus:outline-none focus:ring-2 focus:ring-blue-600"
+          rows={6}
+          placeholder="Pega aquí el texto del profesor..."
+        />
+        <div className="mt-4 flex justify-end">
+          <Button onClick={handleGenerate} disabled={loading}>
+            {loading ? "Generando..." : "Generar Preguntas"}
+          </Button>
         </div>
       </Card>
 
-      <Card>
-        <div className="overflow-x-auto">
-          <table className="min-w-full text-sm">
-            <thead>
-              <tr className="text-left text-slate-500">
-                <th className="py-2 pr-4">Proyecto</th>
-                <th className="py-2 pr-4">Estado</th>
-                <th className="py-2 pr-4">Tags</th>
-                <th className="py-2">Acciones</th>
-              </tr>
-            </thead>
-            <tbody className="align-top text-slate-800">
-              {[1,2,3].map(i => (
-                <tr key={i} className="border-t">
-                  <td className="py-3 pr-4 font-medium">Proyecto {i}</td>
-                  <td className="py-3 pr-4">
-                    {i % 3 === 0 ? (
-                      <span className="inline-flex rounded-lg bg-green-100 px-2.5 py-1 text-green-800">Completado</span>
-                    ) : i % 2 === 0 ? (
-                      <span className="inline-flex rounded-lg bg-yellow-100 px-2.5 py-1 text-yellow-800">Pendiente</span>
-                    ) : (
-                      <span className="inline-flex rounded-lg bg-blue-100 px-2.5 py-1 text-blue-800">En curso</span>
-                    )}
-                  </td>
-                  <td className="py-3 pr-4"><div className="flex flex-wrap gap-2"><Tag>IA</Tag><Tag>Equipo</Tag><Tag>Docs</Tag></div></td>
-                  <td className="py-3"><div className="flex gap-2"><Button variant="ghost">Ver</Button><Button variant="subtle">Editar</Button></div></td>
+      {error && (
+        <Card>
+          <p className="text-red-600">⚠️ {error}</p>
+        </Card>
+      )}
+
+      {results.length > 0 && (
+        <Card title="Resultados">
+          <div className="overflow-x-auto">
+            <table className="min-w-full text-sm">
+              <thead>
+                <tr className="text-left text-slate-500">
+                  <th className="py-2 pr-4">Pregunta</th>
+                  <th className="py-2">Respuesta</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      </Card>
+              </thead>
+              <tbody className="align-top text-slate-800">
+                {results.map((item, idx) => (
+                  <tr key={idx} className="border-t">
+                    <td className="py-3 pr-4 font-medium">{item.question}</td>
+                    <td className="py-3">{item.answer}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </Card>
+      )}
     </div>
   );
 }
