@@ -12,7 +12,7 @@ El sistema ayuda a estudiantes y docentes a desarrollar habilidades de pensamien
 - **Frontend:** React.js + Redux Toolkit / Context API
 - **Backend:** Node.js + Express.js (API REST)
 - **Base de datos:** MongoDB (Atlas o local)
-- **IA:** Hugging Face Transformers, OpenAI API (opcional)
+- **IA:** Hugging Face Transformers, Ollama API (gemma:2b)
 - **Automatización:** n8n
 - **Contenerización:** Docker + docker-compose
 
