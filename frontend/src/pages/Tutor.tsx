@@ -10,6 +10,7 @@ interface Answer {
 interface QAResult {
   question: string;
   answers: Answer[];
+  feedback?: string;
 }
 
 export default function Tutor() {
@@ -23,7 +24,12 @@ export default function Tutor() {
     Record<number, number | null>
   >({});
   const [feedback, setFeedback] = useState<Record<number, string>>({});
-const [score, setScore] = useState<number | null>(null);
+  const [score, setScore] = useState<number | null>(null);
+  const [openAnswer, setOpenAnswer] = useState("");
+  const [openEval, setOpenEval] = useState<{
+    score: number;
+    feedback: string;
+  } | null>(null);
 
   const handleGenerate = async () => {
     if (!text.trim()) {
@@ -67,27 +73,28 @@ const [score, setScore] = useState<number | null>(null);
   };
 
   const handleVerify = () => {
-  const newFeedback: Record<number, string> = {};
-  let correctCount = 0;
+    const newFeedback: Record<number, string> = {};
+    let correctCount = 0;
 
-  results.forEach((qa, i) => {
+    results.forEach((qa, i) => {
     const selected = selectedAnswers[i];
     if (selected !== null && qa.answers[selected]?.correct) {
-      newFeedback[i] = "¡Correcto! 🎉";
+      newFeedback[i] = "¡Correcto! 🎉 " + (qa.feedback || "");
       correctCount++;
     } else {
-      newFeedback[i] = "Incorrecto. Sigue intentando 💪";
+      // Mostrar cuál era la correcta
+      const correctAns = qa.answers.find((a) => a.correct)?.text || "Respuesta no encontrada";
+      newFeedback[i] = `❌ Incorrecto. La respuesta correcta era: "${correctAns}". ${qa.feedback || ""}`;
     }
   });
 
-  setFeedback(newFeedback);
+    setFeedback(newFeedback);
 
-  // Calcular puntaje proporcional a 20
-  const total = results.length;
-  const scoreCalc = Math.round((correctCount / total) * 20);
-  setScore(scoreCalc);
-};
-
+    // Calcular puntaje proporcional a 20
+    const total = results.length;
+    const scoreCalc = Math.round((correctCount / total) * 20);
+    setScore(scoreCalc);
+  };
 
   // 📂 Subir archivo Word
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -112,7 +119,6 @@ const [score, setScore] = useState<number | null>(null);
       setError("Error al subir archivo: " + err.message);
     }
   };
-
 
   return (
     <div className="max-w-4xl mx-auto space-y-6 p-4">
@@ -245,16 +251,18 @@ const [score, setScore] = useState<number | null>(null);
 
                 {feedback[i] && (
                   <div
-                    className={`ml-9 p-3 rounded-lg ${feedback[i].includes("🎉")
+                    className={`ml-9 p-3 rounded-lg ${
+                      feedback[i].includes("🎉")
                         ? "bg-green-50 border border-green-200"
                         : "bg-orange-50 border border-orange-200"
-                      }`}
+                    }`}
                   >
                     <p
-                      className={`font-semibold ${feedback[i].includes("🎉")
+                      className={`font-semibold ${
+                        feedback[i].includes("🎉")
                           ? "text-green-700"
                           : "text-orange-700"
-                        }`}
+                      }`}
                     >
                       {feedback[i]}
                     </p>
@@ -274,16 +282,53 @@ const [score, setScore] = useState<number | null>(null);
             {rawOutput}
           </pre>
         </Card>
-        
       )}
-      {score !== null && (
-  <Card className="p-4 border-l-4 border-l-purple-500 bg-purple-50">
-    <h3 className="text-lg font-semibold text-purple-700">
-      🎯 Tu puntaje: {score} / 20
-    </h3>
-  </Card>
-)}
 
+      {score !== null && (
+        <Card className="p-4 border-l-4 border-l-purple-500 bg-purple-50">
+          <h3 className="text-lg font-semibold text-purple-700">
+            🎯 Tu puntaje: {score} / 20
+          </h3>
+        </Card>
+      )}
+
+      <div className="mt-6">
+        <label className="block text-sm font-semibold text-slate-700 mb-2">
+          📝 Escribe un resumen o reflexión crítica
+        </label>
+        <textarea
+          rows={4}
+          className="w-full rounded-xl border border-slate-300 bg-white p-4 text-sm focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all duration-200 resize-none shadow-sm"
+          placeholder="Escribe aquí tu resumen..."
+          value={openAnswer}
+          onChange={(e) => setOpenAnswer(e.target.value)}
+        />
+
+        <Button
+          onClick={async () => {
+            const resp = await fetch("/api/evaluate-open", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ text, studentAnswer: openAnswer }),
+            });
+            const data = await resp.json();
+            setOpenEval(data);
+          }}
+          disabled={!openAnswer.trim()}
+          className="mt-3 min-w-[160px] bg-gradient-to-r from-purple-600 to-purple-700 hover:from-purple-700 hover:to-purple-800 text-white shadow-sm"
+        >
+          📖 Evaluar resumen
+        </Button>
+
+        {openEval && (
+          <div className="mt-3 p-4 border-l-4 border-l-purple-500 bg-purple-50 rounded-lg">
+            <p className="font-semibold text-purple-700 text-lg">
+              🎯 Puntaje: {openEval.score} / 20
+            </p>
+            <p className="text-slate-700 mt-2">{openEval.feedback}</p>
+          </div>
+        )}
+      </div>
     </div>
   );
 }

@@ -41,6 +41,59 @@ app.post("/api/upload", upload.single("file"), async (req, res) => {
   }
 });
 
+// 📝 Evaluar pregunta abierta / resumen
+app.post("/api/evaluate-open", async (req, res) => {
+  const { text, studentAnswer } = req.body || {};
+  if (!text || !studentAnswer || !studentAnswer.trim()) {
+    return res.status(400).json({ error: "Falta texto o respuesta del estudiante" });
+  }
+
+  try {
+    const prompt = `
+Texto base:
+${text}
+
+Respuesta del estudiante:
+${studentAnswer}
+
+Evalúa si el estudiante comprendió críticamente el texto.
+1. Asigna un puntaje de 0 a 20.
+2. Da una retroalimentación breve (máx. 3 oraciones).
+
+Responde en formato JSON:
+{
+  "score": 0-20,
+  "feedback": "..."
+}
+`;
+
+    const response = await fetch("http://localhost:11434/api/generate", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        model: "gemma:2b",
+        prompt,
+      }),
+    });
+
+    const rawData = await response.text();
+    const lines = rawData.trim().split("\n").map((l) => JSON.parse(l));
+    const output = lines.map((l) => l.response).join("");
+
+    try {
+      const parsed = JSON.parse(output.trim());
+      return res.json(parsed);
+    } catch {
+      console.error("⚠️ No fue JSON válido:", output);
+      return res.json({ raw: output });
+    }
+  } catch (err) {
+    console.error("❌ Error con Ollama:", err.message);
+    res.status(500).json({ error: "Error al evaluar resumen" });
+  }
+});
+
+
 // 🤖 Generar preguntas y respuestas con Ollama (Gemma 2B)
 app.post("/api/generate-qa", async (req, res) => {
   const { text, count } = req.body || {};
@@ -58,7 +111,7 @@ ${text}
 
 Genera ${numQuestions} preguntas de opción múltiple para evaluar comprensión lectora.
 Cada pregunta debe tener 4 respuestas posibles.
-Marca la respuesta correcta con "correct": true y las incorrectas con "correct": false.
+Además, para cada pregunta incluye un campo "feedback" con retroalimentación breve para el alumno.
 
 Responde SOLO en formato JSON válido, con esta estructura:
 
@@ -70,10 +123,12 @@ Responde SOLO en formato JSON válido, con esta estructura:
       {"text": "...", "correct": false},
       {"text": "...", "correct": false},
       {"text": "...", "correct": false}
-    ]
+    ],
+    "feedback": "..."
   }
 ]
 `;
+
 
     const response = await fetch("http://localhost:11434/api/generate", {
       method: "POST",
