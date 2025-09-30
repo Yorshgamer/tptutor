@@ -23,6 +23,7 @@ export default function Tutor() {
     Record<number, number | null>
   >({});
   const [feedback, setFeedback] = useState<Record<number, string>>({});
+const [score, setScore] = useState<number | null>(null);
 
   const handleGenerate = async () => {
     if (!text.trim()) {
@@ -66,17 +67,52 @@ export default function Tutor() {
   };
 
   const handleVerify = () => {
-    const newFeedback: Record<number, string> = {};
-    results.forEach((qa, i) => {
-      const selected = selectedAnswers[i];
-      if (selected !== null && qa.answers[selected]?.correct) {
-        newFeedback[i] = "¡Correcto! 🎉";
+  const newFeedback: Record<number, string> = {};
+  let correctCount = 0;
+
+  results.forEach((qa, i) => {
+    const selected = selectedAnswers[i];
+    if (selected !== null && qa.answers[selected]?.correct) {
+      newFeedback[i] = "¡Correcto! 🎉";
+      correctCount++;
+    } else {
+      newFeedback[i] = "Incorrecto. Sigue intentando 💪";
+    }
+  });
+
+  setFeedback(newFeedback);
+
+  // Calcular puntaje proporcional a 20
+  const total = results.length;
+  const scoreCalc = Math.round((correctCount / total) * 20);
+  setScore(scoreCalc);
+};
+
+
+  // 📂 Subir archivo Word
+  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (!e.target.files?.[0]) return;
+    const formData = new FormData();
+    formData.append("file", e.target.files[0]);
+
+    try {
+      const resp = await fetch("/api/upload", {
+        method: "POST",
+        body: formData,
+      });
+
+      const data = await resp.json();
+      if (resp.ok && data.text) {
+        setText(data.text);
+        setError("");
       } else {
-        newFeedback[i] = "Incorrecto. Sigue intentando 💪";
+        setError(data.error || "Error al procesar archivo.");
       }
-    });
-    setFeedback(newFeedback);
+    } catch (err: any) {
+      setError("Error al subir archivo: " + err.message);
+    }
   };
+
 
   return (
     <div className="max-w-4xl mx-auto space-y-6 p-4">
@@ -90,6 +126,23 @@ export default function Tutor() {
             <label className="block text-sm font-semibold text-slate-700 mb-2">
               Texto a analizar
             </label>
+            <div>
+              <label className="block text-sm font-semibold text-slate-700 mb-2">
+                Subir archivo Word (.docx)
+              </label>
+              <input
+                type="file"
+                accept=".docx"
+                onChange={handleFileUpload}
+                className="block w-full text-sm text-slate-600 
+               file:mr-4 file:py-2 file:px-4 
+               file:rounded-lg file:border-0 
+               file:text-sm file:font-semibold 
+               file:bg-blue-600 file:text-white 
+               hover:file:bg-blue-700 cursor-pointer"
+              />
+            </div>
+
             <textarea
               rows={6}
               className="w-full rounded-xl border border-slate-300 bg-white p-4 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 resize-none shadow-sm"
@@ -192,18 +245,16 @@ export default function Tutor() {
 
                 {feedback[i] && (
                   <div
-                    className={`ml-9 p-3 rounded-lg ${
-                      feedback[i].includes("🎉")
+                    className={`ml-9 p-3 rounded-lg ${feedback[i].includes("🎉")
                         ? "bg-green-50 border border-green-200"
                         : "bg-orange-50 border border-orange-200"
-                    }`}
+                      }`}
                   >
                     <p
-                      className={`font-semibold ${
-                        feedback[i].includes("🎉")
+                      className={`font-semibold ${feedback[i].includes("🎉")
                           ? "text-green-700"
                           : "text-orange-700"
-                      }`}
+                        }`}
                     >
                       {feedback[i]}
                     </p>
@@ -223,7 +274,16 @@ export default function Tutor() {
             {rawOutput}
           </pre>
         </Card>
+        
       )}
+      {score !== null && (
+  <Card className="p-4 border-l-4 border-l-purple-500 bg-purple-50">
+    <h3 className="text-lg font-semibold text-purple-700">
+      🎯 Tu puntaje: {score} / 20
+    </h3>
+  </Card>
+)}
+
     </div>
   );
 }

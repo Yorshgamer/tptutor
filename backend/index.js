@@ -1,16 +1,47 @@
 const express = require("express");
 const cors = require("cors");
+const multer = require("multer");
+const fs = require("fs");
+const mammoth = require("mammoth");
 
 const app = express();
 app.use(cors());
 app.use(express.json());
+
+const upload = multer({ dest: "uploads/" }); // carpeta temporal para subir archivos
 
 // Ruta de prueba
 app.get("/api/hello", (req, res) => {
   res.json({ message: "Hola desde el backend 🚀" });
 });
 
-// Generar preguntas y respuestas con Ollama (Gemma 2B)
+// 📂 Subir archivo y extraer texto (solo DOCX)
+app.post("/api/upload", upload.single("file"), async (req, res) => {
+  try {
+    if (!req.file) {
+      return res.status(400).json({ error: "No se subió ningún archivo" });
+    }
+
+    if (
+      req.file.mimetype ===
+      "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+    ) {
+      const result = await mammoth.extractRawText({ path: req.file.path });
+      fs.unlinkSync(req.file.path); // eliminar archivo temporal
+      return res.json({ text: result.value.trim() });
+    } else {
+      fs.unlinkSync(req.file.path);
+      return res
+        .status(400)
+        .json({ error: "Formato no soportado. Solo DOCX" });
+    }
+  } catch (err) {
+    console.error("❌ Error procesando DOCX:", err.message);
+    res.status(500).json({ error: "Error procesando archivo" });
+  }
+});
+
+// 🤖 Generar preguntas y respuestas con Ollama (Gemma 2B)
 app.post("/api/generate-qa", async (req, res) => {
   const { text, count } = req.body || {};
   if (!text || !text.trim()) {
@@ -57,8 +88,8 @@ Responde SOLO en formato JSON válido, con esta estructura:
     const rawData = await response.text();
 
     // Ollama manda NDJSON → separar líneas y parsear
-    const lines = rawData.trim().split("\n").map(l => JSON.parse(l));
-    const output = lines.map(l => l.response).join("");
+    const lines = rawData.trim().split("\n").map((l) => JSON.parse(l));
+    const output = lines.map((l) => l.response).join("");
 
     // Intentar parsear como JSON estructurado
     try {
