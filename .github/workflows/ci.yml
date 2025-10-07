@@ -12,7 +12,7 @@ on:
 
 jobs:
   backend-ci:
-    name: Backend (Node 20)
+    name: Backend CI (Node)
     runs-on: ubuntu-latest
 
     defaults:
@@ -30,19 +30,25 @@ jobs:
           cache: npm
           cache-dependency-path: backend/package-lock.json
 
-      - name: Install deps
-        run: npm ci
+      # Instalación flexible (funciona con o sin package-lock.json)
+      - name: Install dependencies
+        run: |
+          if [ -f package-lock.json ]; then
+            echo "Usando npm ci..."
+            npm ci
+          else
+            echo "No hay package-lock.json, usando npm install..."
+            npm install
+          fi
 
-      # Si en local usas dotenv, en CI evita leer archivos .env comprometidos
-      # y usa variables de entorno/Secrets cuando haga falta.
-      - name: Lint (opcional)
+      - name: Lint (si existe)
         run: npm run lint --if-present
 
-      - name: Tests (opcional)
+      - name: Test (si existe)
         run: npm test --if-present
 
-      - name: Build (si aplica)
+      - name: Build (si existe)
         run: npm run build --if-present
 
-      - name: Mostrar scripts disponibles (debug)
+      - name: Mostrar scripts disponibles
         run: npm run
