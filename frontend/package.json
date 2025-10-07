@@ -8,9 +8,9 @@
     "build": "vite build",
     "lint": "eslint .",
     "preview": "vite preview",
-    "test": "jest --passWithNoTests",
-    "test:watch": "jest --watch",
-    "test:coverage": "jest --coverage --passWithNoTests"
+    "test": "jest --passWithNoTests --colors",
+    "test:watch": "jest --watch --colors",
+    "test:coverage": "jest --coverage --passWithNoTests --colors"
   },
   "dependencies": {
     "axios": "^1.11.0",
