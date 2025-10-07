@@ -1,8 +1,31 @@
+version: "3.9"
+
 services:
+  backend-tests:
+    image: node:22-alpine
+    working_dir: /app
+    volumes:
+      - ./backend:/app:rw
+      - /app/node_modules
+    command: sh -c "npm ci && npm test -- --coverage"
+    environment:
+      - NODE_ENV=test
+    networks:
+      - testnet
+
   frontend-tests:
     image: node:22-alpine
     working_dir: /app
     volumes:
       - ./frontend:/app:rw
       - /app/node_modules
-    command: sh -c "npm install && npm run test:coverage"
+    command: sh -c "npm ci && npm run test:coverage"
+    environment:
+      - CI=true
+      - NODE_ENV=test
+    networks:
+      - testnet
+
+networks:
+  testnet:
+    driver: bridge
