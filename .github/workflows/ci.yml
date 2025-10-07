@@ -1,0 +1,48 @@
+name: CI - tptutor backend
+
+on:
+  push:
+    branches: [ master, main ]
+    paths:
+      - "backend/**"
+      - ".github/workflows/**"
+  pull_request:
+    branches: [ master, main ]
+  workflow_dispatch:
+
+jobs:
+  backend-ci:
+    name: Backend (Node 20)
+    runs-on: ubuntu-latest
+
+    defaults:
+      run:
+        working-directory: backend
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: backend/package-lock.json
+
+      - name: Install deps
+        run: npm ci
+
+      # Si en local usas dotenv, en CI evita leer archivos .env comprometidos
+      # y usa variables de entorno/Secrets cuando haga falta.
+      - name: Lint (opcional)
+        run: npm run lint --if-present
+
+      - name: Tests (opcional)
+        run: npm test --if-present
+
+      - name: Build (si aplica)
+        run: npm run build --if-present
+
+      - name: Mostrar scripts disponibles (debug)
+        run: npm run
