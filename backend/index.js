@@ -4,6 +4,7 @@ const cors = require("cors");
 const uploadRoutes = require("./routes/uploadRoutes");
 const evaluateRoutes = require("./routes/evaluateRoutes");
 const generateRoutes = require("./routes/generateRoutes");
+const userRoutes = require("./routes/userRoutes");
 
 const app = express();
 app.use(cors());
@@ -12,6 +13,7 @@ app.use(express.json());
 app.use("/api/upload", uploadRoutes);
 app.use("/api/evaluate-open", evaluateRoutes);
 app.use("/api/generate-qa", generateRoutes);
+app.use("/api/users", userRoutes);
 
 app.get("/api/hello", (req, res) => {
   res.json({ message: "Hola desde el backend 🚀" });
