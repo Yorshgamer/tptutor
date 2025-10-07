@@ -294,7 +294,7 @@ export default function Tutor() {
 
       <div className="mt-6">
         <label className="block text-sm font-semibold text-slate-700 mb-2">
-          📝 Escribe un resumen o reflexión crítica
+          📝 Escribe una reflexión crítica
         </label>
         <textarea
           rows={4}

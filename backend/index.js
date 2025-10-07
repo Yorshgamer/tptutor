@@ -58,7 +58,7 @@ ${studentAnswer}
 
 Evalúa si el estudiante comprendió críticamente el texto.
 1. Asigna un puntaje de 0 a 20.
-2. Da una retroalimentación breve (máx. 3 oraciones).
+2. Da una retroalimentación breve (máx. 4 oraciones).
 
 Responde en formato JSON:
 {
