@@ -19,13 +19,9 @@ services:
     volumes:
       - ./frontend:/app:rw
       - /app/node_modules
-    command: sh -c "npm ci && npm run test:coverage"
     environment:
-      - CI=true
-      - NODE_ENV=test
-    networks:
-      - testnet
-
-networks:
-  testnet:
-    driver: bridge
+      - FORCE_COLOR=1
+      - npm_config_color=true
+      - TERM=xterm-256color
+    tty: true
+    command: sh -c "npm install && npm run test:coverage"
