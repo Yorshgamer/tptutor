@@ -1,7 +1,7 @@
 const fs = require("fs");
 const mammoth = require("mammoth");
 
-exports.handleUpload = async (req, res) => {
+exports.uploadFile = async (req, res) => {
   try {
     if (!req.file) {
       return res.status(400).json({ error: "No se subió ningún archivo" });

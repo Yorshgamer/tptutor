@@ -1,3 +1,4 @@
+// index.js
 const express = require("express");
 const cors = require("cors");
 const uploadRoutes = require("./routes/uploadRoutes");
@@ -17,8 +18,11 @@ app.get("/api/hello", (req, res) => {
 });
 
 const PORT = process.env.PORT || 5000;
-app.listen(PORT, () =>
-  console.log(`Servidor corriendo en http://localhost:${PORT}`)
-);
+// importante: no escuchar en modo test
+if (process.env.NODE_ENV !== "test") {
+  app.listen(PORT, () =>
+    console.log(`Servidor corriendo en http://localhost:${PORT}`)
+  );
+}
 
 module.exports = app;

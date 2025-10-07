@@ -6,6 +6,14 @@ exports.ollamaRequest = async (prompt) => {
   });
 
   const rawData = await response.text();
-  const lines = rawData.trim().split("\n").map((l) => JSON.parse(l));
-  return lines.map((l) => l.response).join("");
+
+  try {
+    const lines = rawData
+      .trim()
+      .split("\n")
+      .map((l) => JSON.parse(l));
+    return lines.map((l) => l.response).join("");
+  } catch (err) {
+    throw new Error("Respuesta inválida de Ollama: " + err.message);
+  }
 };
