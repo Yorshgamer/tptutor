@@ -1,0 +1,21 @@
+Heurística;Indicador;count;mean;median;std;
+Ayuda y documentación;Indicador 1;7;4.285714286;4;0.755928946;
+Ayuda y documentación;Indicador 2;7;4.285714286;4;0.755928946;
+Consistencia y estándares;Indicador 2;7;4;4;0.816496581;
+Consistencia y estándares;Indicador 1;7;3.714285714;4;1.112697281;
+Control y libertad del usuario;Indicador 1;7;4.428571429;4;0.534522484;
+Control y libertad del usuario;Indicador 2;7;4.428571429;4;0.534522484;
+Correspondencia entre el sistema y el mundo real;Indicador 1;7;4;4;0.816496581;
+Correspondencia entre el sistema y el mundo real;Indicador 2;7;3.714285714;4;0.951189731;
+Diseño estético y minimalista;Indicador 2;7;4.428571429;5;0.786795792;
+Diseño estético y minimalista;Indicador 1;7;4.142857143;4;0.690065559;
+Flexibilidad y eficiencia de uso;Indicador 2;7;4;4;0.816496581;
+Flexibilidad y eficiencia de uso;Indicador 1;7;3.857142857;4;1.069044968;
+Prevención de errores;Indicador 1;7;4.142857143;4;0.690065559;
+Prevención de errores;Indicador 2;7;3.857142857;4;1.069044968;
+Reconocer antes que recordar;Indicador 1;7;4.428571429;4;0.534522484;
+Reconocer antes que recordar;Indicador 2;7;3.714285714;4;0.755928946;
+Reconocer; diagnosticar y recuperarse de errores;Indicador 2;7;4;4;1
+Reconocer; diagnosticar y recuperarse de errores;Indicador 1;7;3.571428571;4;1.133893419
+Visibilidad del estado del sistema;Indicador 1;7;4.571428571;5;0.534522484;
+Visibilidad del estado del sistema;Indicador 2;7;4;4;1;
