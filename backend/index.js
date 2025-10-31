@@ -1,30 +1,38 @@
-// index.js
+require("dotenv").config();
 const express = require("express");
 const cors = require("cors");
-const uploadRoutes = require("./routes/uploadRoutes");
-const evaluateRoutes = require("./routes/evaluateRoutes");
-const generateRoutes = require("./routes/generateRoutes");
-const userRoutes = require("./routes/userRoutes");
+
+// importa tu conector
+const { connectMongo, handleProcessSignals } = require("./src/db/mongoose");
 
 const app = express();
 app.use(cors());
 app.use(express.json());
 
-app.use("/api/upload", uploadRoutes);
-app.use("/api/evaluate-open", evaluateRoutes);
-app.use("/api/generate-qa", generateRoutes);
-app.use("/api/users", userRoutes);
+// ... tus rutas actuales
+// app.use("/api/upload", uploadRoutes);
+// app.use("/api/evaluate-open", evaluateRoutes);
+// app.use("/api/generate-qa", generateRoutes);
+// app.use("/api/users", userRoutes);
 
-app.get("/api/hello", (req, res) => {
+app.get("/api/hello", (_req, res) => {
   res.json({ message: "Hola desde el backend 🚀" });
 });
 
 const PORT = process.env.PORT || 5000;
-// importante: no escuchar en modo test
-if (process.env.NODE_ENV !== "test") {
-  app.listen(PORT, () =>
-    console.log(`Servidor corriendo en http://localhost:${PORT}`)
-  );
-}
+
+(async () => {
+  try {
+    await connectMongo();
+    handleProcessSignals();
+
+    if (process.env.NODE_ENV !== "test") {
+      app.listen(PORT, () => console.log(`API en http://localhost:${PORT}`));
+    }
+  } catch (err) {
+    console.error("Error conectando a Mongo:", err);
+    process.exit(1);
+  }
+})();
 
 module.exports = app;
