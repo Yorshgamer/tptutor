@@ -1,16 +1,19 @@
 import React, { useState, ChangeEvent, FormEvent } from "react";
+import { useNavigate, useLocation } from "react-router-dom";
+import { useAuth } from "../auth/AuthContext";
 import Card from "../components/Card";
 import Button from "../components/Button";
-// Si quieres base URL desde .env (Vite), descomenta:
-// const API_URL = import.meta.env.VITE_API_URL || "";
-const ENDPOINT_LOGIN = "/api/auth/login";
 
+const ENDPOINT_LOGIN = "/api/auth/login";
 type Msg = { type: "error" | "success" | ""; text: string };
 
 export default function Login() {
   const [form, setForm] = useState({ email: "", pass: "" });
   const [loading, setLoading] = useState(false);
   const [msg, setMsg] = useState<Msg>({ type: "", text: "" });
+  const navigate = useNavigate();
+  const location = useLocation();
+  const { login } = useAuth(); // ← usamos el contexto
 
   const handleChange = (e: ChangeEvent<HTMLInputElement>) => {
     setForm({ ...form, [e.target.id]: e.target.value });
@@ -22,46 +25,28 @@ export default function Login() {
 
     try {
       setLoading(true);
-      const res = await fetch(
-        // `${API_URL}${ENDPOINT_LOGIN}`,
-        ENDPOINT_LOGIN,
-        {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            email: form.email,
-            // ✅ el backend espera "password"
-            password: form.pass,
-          }),
-        }
-      );
+      const res = await fetch(ENDPOINT_LOGIN, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email: form.email, password: form.pass }),
+      });
 
-      // Intenta parsear JSON aunque venga con error
       const payload = await res.json().catch(() => ({}));
-      // Estructuras esperadas:
-      // { ok:true, data:{ token, user } }  ó  { token, user }
       const ok = payload?.ok ?? res.ok;
-
-      if (!ok) {
-        const errMsg = payload?.error || "Error al iniciar sesión";
-        throw new Error(errMsg);
-      }
+      if (!ok) throw new Error(payload?.error || "Error al iniciar sesión");
 
       const data = payload?.data ?? payload;
       const { token, user } = data || {};
+      if (!token || !user) throw new Error("Respuesta inválida del servidor");
 
-      if (!token || !user) {
-        throw new Error("Respuesta inválida del servidor");
-      }
-
-      // ✅ Persistimos token y usuario
-      localStorage.setItem("token", token);
-      localStorage.setItem("user", JSON.stringify(user));
+      // ✅ usa el contexto (también persiste en localStorage)
+      login(token, user);
 
       setMsg({ type: "success", text: "Inicio de sesión exitoso 🚀" });
 
-      // Redirección opcional:
-      // window.location.href = "/tutor";
+      // Redirección: vuelve a la ruta que intentó visitar o a /tutor
+      const from = (location.state as any)?.from?.pathname || "/tutor";
+      navigate(from, { replace: true });
     } catch (err: any) {
       setMsg({ type: "error", text: err?.message || "No se pudo iniciar sesión" });
     } finally {
@@ -73,44 +58,23 @@ export default function Login() {
     <div className="max-w-md">
       <Card title="Iniciar sesión">
         <form className="space-y-4" onSubmit={handleSubmit}>
+          {/* ...tus inputs y botón tal cual... */}
+          {/* (deja el resto de tu JSX igual) */}
           <div>
-            <label htmlFor="email" className="block text-sm font-medium mb-1">
-              Correo
-            </label>
-            <input
-              id="email"
-              type="email"
-              required
-              value={form.email}
-              onChange={handleChange}
+            <label htmlFor="email" className="block text-sm font-medium mb-1">Correo</label>
+            <input id="email" type="email" required value={form.email} onChange={handleChange}
               className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-600"
-              placeholder="tu@correo.com"
-            />
+              placeholder="tu@correo.com" />
           </div>
 
           <div>
-            <label htmlFor="pass" className="block text-sm font-medium mb-1">
-              Contraseña
-            </label>
-            <input
-              id="pass"
-              type="password"
-              required
-              minLength={6}
-              value={form.pass}
-              onChange={handleChange}
-              className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-600"
-            />
+            <label htmlFor="pass" className="block text-sm font-medium mb-1">Contraseña</label>
+            <input id="pass" type="password" required minLength={6} value={form.pass} onChange={handleChange}
+              className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-600" />
           </div>
 
           {msg.text && (
-            <p
-              className={`text-sm font-medium p-2 rounded ${
-                msg.type === "error"
-                  ? "bg-red-100 text-red-700"
-                  : "bg-green-100 text-green-700"
-              }`}
-            >
+            <p className={`text-sm font-medium p-2 rounded ${msg.type === "error" ? "bg-red-100 text-red-700" : "bg-green-100 text-green-700"}`}>
               {msg.text}
             </p>
           )}

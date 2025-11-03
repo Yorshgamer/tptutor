@@ -1,9 +1,10 @@
 import React, { useState } from "react";
+import { Outlet } from "react-router-dom";
 import Header from "./Header";
 import Sidebar from "./Sidebar";
 import SideNav from "./SideNav";
 
-export default function Layout({ children }: { children: React.ReactNode }) {
+export default function Layout() {
   const [open, setOpen] = useState(false);
 
   return (
@@ -20,7 +21,10 @@ export default function Layout({ children }: { children: React.ReactNode }) {
             </div>
           </aside>
 
-          <main className="md:col-span-9 py-6">{children}</main>
+          {/* 👇 Aquí va el contenido de las rutas hijas */}
+          <main className="md:col-span-9 py-6">
+            <Outlet />
+          </main>
         </div>
       </div>
 
