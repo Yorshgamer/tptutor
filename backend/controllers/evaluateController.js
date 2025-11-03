@@ -1,19 +1,19 @@
-const { ollamaRequest } = require("../utils/ollamaClient");
+// controllers/evaluateController.js
+import { ollamaRequest } from "../utils/ollamaClient.js";
 
-exports.evaluateOpen = async (req, res) => {
-    const { text, studentAnswer } = req.body || {};
+export async function evaluateOpen(req, res) {
+  const { text, studentAnswer } = req.body || {};
 
-    // 🧠 Validaciones de entrada mejoradas
-    if (!text || !text.trim()) {
-        return res.status(400).json({ error: "Debe enviarse el texto base para evaluar." });
-    }
+  if (!text || !text.trim()) {
+    return res.status(400).json({ error: "Debe enviarse el texto base para evaluar." });
+  }
 
-    if (!studentAnswer || !studentAnswer.trim()) {
-        return res.status(400).json({ error: "Debe escribirse una respuesta del estudiante para evaluar." });
-    }
+  if (!studentAnswer || !studentAnswer.trim()) {
+    return res.status(400).json({ error: "Debe escribirse una respuesta del estudiante para evaluar." });
+  }
 
-    try {
-        const prompt = `
+  try {
+    const prompt = `
 Evalúa la siguiente respuesta de un estudiante según el texto dado.
 
 TEXTO BASE:
@@ -46,21 +46,20 @@ Responde **solo en JSON válido** con esta estructura exacta:
 "feedback": "Retroalimentación breve (máx. 3 oraciones), indicando comprensión, errores ortográficos o de coherencia."
 }
 `;
+    const output = await ollamaRequest(prompt);
 
-        const output = await ollamaRequest(prompt);
-
-        try {
-            const parsed = JSON.parse(output.trim());
-            return res.json(parsed);
-        } catch {
-            console.error("⚠️ No fue JSON válido:", output);
-            return res.status(502).json({
-                error: "La respuesta del modelo no fue válida.",
-                raw: output,
-            });
-        }
-    } catch (err) {
-        console.error("❌ Error con Ollama:", err.message);
-        res.status(500).json({ error: "Error interno al evaluar resumen." });
+    try {
+      const parsed = JSON.parse(output.trim());
+      return res.json(parsed);
+    } catch {
+      console.error("⚠️ No fue JSON válido:", output);
+      return res.status(502).json({
+        error: "La respuesta del modelo no fue válida.",
+        raw: output,
+      });
     }
-};
+  } catch (err) {
+    console.error("❌ Error con Ollama:", err.message);
+    res.status(500).json({ error: "Error interno al evaluar resumen." });
+  }
+}

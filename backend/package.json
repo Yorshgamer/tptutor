@@ -1,6 +1,7 @@
 {
   "name": "backend",
   "version": "1.0.0",
+  "type": "module",
   "main": "index.js",
   "scripts": {
     "test": "jest --coverage --runInBand",
@@ -13,7 +14,7 @@
   "dependencies": {
     "@huggingface/inference": "^4.7.1",
     "axios": "^1.12.2",
-    "bcryptjs": "^3.0.2",
+    "bcryptjs": "^3.0.3",
     "cors": "^2.8.5",
     "dotenv": "^17.2.1",
     "express": "^5.1.0",

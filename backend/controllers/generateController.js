@@ -1,6 +1,7 @@
-const { ollamaRequest } = require("../utils/ollamaClient");
+// controllers/generateController.js
+import { ollamaRequest } from "../utils/ollamaClient.js";
 
-exports.generateQA = async (req, res) => {
+export async function generateQA(req, res) {
   const { text, count } = req.body || {};
   if (!text || !text.trim()) {
     return res.status(400).json({ error: "El campo 'text' es requerido" });
@@ -32,8 +33,8 @@ Responde SOLO en formato JSON válido, con esta estructura:
   }
 ]
 `;
-
     const output = await ollamaRequest(prompt);
+
     try {
       const parsed = JSON.parse(output.trim());
       return res.json(parsed);
@@ -45,4 +46,4 @@ Responde SOLO en formato JSON válido, con esta estructura:
     console.error("❌ Error con Ollama:", err.message);
     res.status(500).json({ error: "Error al generar preguntas" });
   }
-};
+}

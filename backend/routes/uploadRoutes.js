@@ -1,10 +1,10 @@
-const express = require("express");
-const multer = require("multer");
-const { uploadFile } = require("../controllers/uploadController");
+import { Router } from "express";
+import multer from "multer";
+import { uploadFile } from "../controllers/uploadController.js"; // ← cambio
 
-const router = express.Router();
+const router = Router();
 const upload = multer({ dest: "uploads/" });
 
 router.post("/", upload.single("file"), uploadFile);
 
-module.exports = router;
+export default router;

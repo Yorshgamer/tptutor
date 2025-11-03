@@ -1,16 +1,14 @@
-const fs = require("fs");
-const mammoth = require("mammoth");
+// controllers/uploadController.js
+import fs from "fs";
+import mammoth from "mammoth";
 
-exports.uploadFile = async (req, res) => {
+export async function uploadFile(req, res) {
   try {
     if (!req.file) {
       return res.status(400).json({ error: "No se subió ningún archivo" });
     }
 
-    if (
-      req.file.mimetype ===
-      "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
-    ) {
+    if (req.file.mimetype === "application/vnd.openxmlformats-officedocument.wordprocessingml.document") {
       const result = await mammoth.extractRawText({ path: req.file.path });
       fs.unlinkSync(req.file.path);
       return res.json({ text: result.value.trim() });
@@ -22,4 +20,4 @@ exports.uploadFile = async (req, res) => {
     console.error("❌ Error procesando DOCX:", err.message);
     res.status(500).json({ error: "Error procesando archivo" });
   }
-};
+}

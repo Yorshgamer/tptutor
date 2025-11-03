@@ -1,7 +1,5 @@
-const express = require("express");
-const { generateQA } = require("../controllers/generateController");
-
-const router = express.Router();
+import { Router } from "express";
+import { generateQA } from "../controllers/generateController.js";
+const router = Router();
 router.post("/", generateQA);
-
-module.exports = router;
+export default router;

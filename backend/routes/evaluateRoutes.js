@@ -1,7 +1,7 @@
-const express = require("express");
-const { evaluateOpen } = require("../controllers/evaluateController");
+import { Router } from "express";
+import { evaluateOpen } from "../controllers/evaluateController.js"; // <-- import nombrado
 
-const router = express.Router();
+const router = Router();
 router.post("/", evaluateOpen);
 
-module.exports = router;
+export default router;
