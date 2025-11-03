@@ -1,14 +1,16 @@
 import React, { useState, ChangeEvent, FormEvent } from "react";
 import Card from "../components/Card";
 import Button from "../components/Button";
+// Si quieres base URL desde .env (Vite), descomenta:
+// const API_URL = import.meta.env.VITE_API_URL || "";
+const ENDPOINT_LOGIN = "/api/auth/login";
+
+type Msg = { type: "error" | "success" | ""; text: string };
 
 export default function Login() {
   const [form, setForm] = useState({ email: "", pass: "" });
   const [loading, setLoading] = useState(false);
-  const [msg, setMsg] = useState<{ type: "error" | "success" | ""; text: string }>({
-    type: "",
-    text: "",
-  });
+  const [msg, setMsg] = useState<Msg>({ type: "", text: "" });
 
   const handleChange = (e: ChangeEvent<HTMLInputElement>) => {
     setForm({ ...form, [e.target.id]: e.target.value });
@@ -20,25 +22,48 @@ export default function Login() {
 
     try {
       setLoading(true);
-      const res = await fetch("/api/users/login", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          email: form.email,
-          password: form.pass,
-        }),
-      });
+      const res = await fetch(
+        // `${API_URL}${ENDPOINT_LOGIN}`,
+        ENDPOINT_LOGIN,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            email: form.email,
+            // ✅ el backend espera "password"
+            password: form.pass,
+          }),
+        }
+      );
 
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || "Error al iniciar sesión");
+      // Intenta parsear JSON aunque venga con error
+      const payload = await res.json().catch(() => ({}));
+      // Estructuras esperadas:
+      // { ok:true, data:{ token, user } }  ó  { token, user }
+      const ok = payload?.ok ?? res.ok;
 
-      localStorage.setItem("user", JSON.stringify(data.user));
+      if (!ok) {
+        const errMsg = payload?.error || "Error al iniciar sesión";
+        throw new Error(errMsg);
+      }
+
+      const data = payload?.data ?? payload;
+      const { token, user } = data || {};
+
+      if (!token || !user) {
+        throw new Error("Respuesta inválida del servidor");
+      }
+
+      // ✅ Persistimos token y usuario
+      localStorage.setItem("token", token);
+      localStorage.setItem("user", JSON.stringify(user));
+
       setMsg({ type: "success", text: "Inicio de sesión exitoso 🚀" });
 
       // Redirección opcional:
       // window.location.href = "/tutor";
     } catch (err: any) {
-      setMsg({ type: "error", text: err.message });
+      setMsg({ type: "error", text: err?.message || "No se pudo iniciar sesión" });
     } finally {
       setLoading(false);
     }

@@ -1,6 +1,10 @@
 import React, { useState, ChangeEvent, FormEvent } from "react";
 import Card from "../components/Card";
 import Button from "../components/Button";
+// const API_URL = import.meta.env.VITE_API_URL || "";
+const ENDPOINT_REGISTER = "/api/auth/register";
+
+type Msg = { type: "error" | "success" | ""; text: string };
 
 export default function Register() {
   const [form, setForm] = useState({
@@ -10,10 +14,7 @@ export default function Register() {
     p2: "",
   });
   const [loading, setLoading] = useState(false);
-  const [msg, setMsg] = useState<{ type: "error" | "success" | ""; text: string }>({
-    type: "",
-    text: "",
-  });
+  const [msg, setMsg] = useState<Msg>({ type: "", text: "" });
 
   const handleChange = (e: ChangeEvent<HTMLInputElement>) => {
     setForm({ ...form, [e.target.id]: e.target.value });
@@ -30,23 +31,47 @@ export default function Register() {
 
     try {
       setLoading(true);
-      const res = await fetch("/api/users/register", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          name: form.name,
-          email: form.email,
-          password: form.p1,
-        }),
+      const res = await fetch(
+        // `${API_URL}${ENDPOINT_REGISTER}`,
+        ENDPOINT_REGISTER,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            name: form.name,
+            email: form.email,
+            password: form.p1, // ✅ el backend espera "password"
+          }),
+        }
+      );
+
+      const payload = await res.json().catch(() => ({}));
+      const ok = payload?.ok ?? res.ok;
+      if (!ok) {
+        const errMsg = payload?.error || "Error al registrar usuario";
+        throw new Error(errMsg);
+      }
+
+      // En el backend que te pasé, register también devuelve token + user.
+      const data = payload?.data ?? payload;
+      const { token, user } = data || {};
+
+      if (token && user) {
+        localStorage.setItem("token", token);
+        localStorage.setItem("user", JSON.stringify(user));
+      }
+
+      setMsg({
+        type: "success",
+        text: token ? "Cuenta creada. Sesión iniciada ✅" : (payload?.message || "Usuario registrado ✅"),
       });
 
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || "Error al registrar usuario");
-
-      setMsg({ type: "success", text: data.message });
       setForm({ name: "", email: "", p1: "", p2: "" });
+
+      // Redirección opcional inmediata:
+      // if (token) window.location.href = "/tutor";
     } catch (err: any) {
-      setMsg({ type: "error", text: err.message });
+      setMsg({ type: "error", text: err?.message || "No se pudo registrar" });
     } finally {
       setLoading(false);
     }
