@@ -10,6 +10,7 @@ import uploadRoutes from "./routes/uploadRoutes.js";
 import evaluateRoutes from "./routes/evaluateRoutes.js";
 import generateRoutes from "./routes/generateRoutes.js";
 import authRoutes from "./routes/authRoutes.js";
+import projectRoutes from "./routes/projectRoutes.js";
 
 const app = express();
 app.use(cors({ origin: true }));
@@ -20,6 +21,7 @@ app.use("/api/upload", uploadRoutes);
 app.use("/api/evaluate-open", evaluateRoutes);
 app.use("/api/generate-qa", generateRoutes);
 app.use("/api/auth", authRoutes);
+app.use("/api/projects", projectRoutes);
 
 app.get("/api/hello", (_req, res) => {
   res.json({ message: "Hola desde el backend 🚀" });
