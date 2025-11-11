@@ -16,11 +16,8 @@ interface QAResult {
 export default function Tutor() {
   const [text, setText] = useState("");
   const [count, setCount] = useState(3);
-  const [loadingGenerate, setLoadingGenerate] = useState(false);
-  const [loadingEvaluate, setLoadingEvaluate] = useState(false);
-  const [errorGenerate, setErrorGenerate] = useState("");
-  const [errorEvaluate, setErrorEvaluate] = useState("");
-  const [errorUpload, setErrorUpload] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
   const [results, setResults] = useState<QAResult[]>([]);
   const [rawOutput, setRawOutput] = useState<string | null>(null);
   const [selectedAnswers, setSelectedAnswers] = useState<
@@ -36,12 +33,12 @@ export default function Tutor() {
 
   const handleGenerate = async () => {
     if (!text.trim()) {
-      setErrorGenerate("Debes ingresar un texto.");
+      setError("Debes ingresar un texto.");
       return;
     }
 
-    setLoadingGenerate(true);
-    setErrorGenerate("");
+    setLoading(true);
+    setError("");
     setResults([]);
     setRawOutput(null);
     setSelectedAnswers({});
@@ -62,16 +59,16 @@ export default function Tutor() {
       } else if (data.raw) {
         setRawOutput(data.raw);
       } else {
-        setErrorGenerate("Formato inesperado de respuesta.");
+        setError("Formato inesperado de respuesta.");
       }
     } catch (err: unknown) {
       if (err instanceof Error) {
-        setErrorGenerate("Error al generar preguntas: " + err.message);
+        setError("Error al generar preguntas: " + err.message);
       } else {
-        setErrorGenerate("Error desconocido al generar preguntas.");
+        setError("Error desconocido al generar preguntas.");
       }
     } finally {
-      setLoadingGenerate(false);
+      setLoading(false);
     }
   };
 
@@ -80,16 +77,16 @@ export default function Tutor() {
     let correctCount = 0;
 
     results.forEach((qa, i) => {
-      const selected = selectedAnswers[i];
-      if (selected !== null && qa.answers[selected]?.correct) {
-        newFeedback[i] = "¡Correcto! 🎉 " + (qa.feedback || "");
-        correctCount++;
-      } else {
-        // Mostrar cuál era la correcta
-        const correctAns = qa.answers.find((a) => a.correct)?.text || "Respuesta no encontrada";
-        newFeedback[i] = `❌ Incorrecto. La respuesta correcta era: "${correctAns}". ${qa.feedback || ""}`;
-      }
-    });
+    const selected = selectedAnswers[i];
+    if (selected !== null && qa.answers[selected]?.correct) {
+      newFeedback[i] = "¡Correcto! 🎉 " + (qa.feedback || "");
+      correctCount++;
+    } else {
+      // Mostrar cuál era la correcta
+      const correctAns = qa.answers.find((a) => a.correct)?.text || "Respuesta no encontrada";
+      newFeedback[i] = `❌ Incorrecto. La respuesta correcta era: "${correctAns}". ${qa.feedback || ""}`;
+    }
+  });
 
     setFeedback(newFeedback);
 
@@ -114,12 +111,12 @@ export default function Tutor() {
       const data = await resp.json();
       if (resp.ok && data.text) {
         setText(data.text);
-        setErrorUpload("");
+        setError("");
       } else {
-        setErrorUpload(data.error || "Error al procesar archivo.");
+        setError(data.error || "Error al procesar archivo.");
       }
     } catch (err: any) {
-      setErrorUpload("Error al subir archivo: " + err.message);
+      setError("Error al subir archivo: " + err.message);
     }
   };
 
@@ -150,9 +147,6 @@ export default function Tutor() {
                file:bg-blue-600 file:text-white 
                hover:file:bg-blue-700 cursor-pointer"
               />
-              {errorUpload && (
-                <p className="text-red-600 text-sm mt-2 font-medium">{errorUpload}</p>
-              )}
             </div>
 
             <textarea
@@ -182,10 +176,10 @@ export default function Tutor() {
             <div className="flex flex-wrap gap-2">
               <Button
                 onClick={handleGenerate}
-                disabled={loadingGenerate}
+                disabled={loading}
                 className="min-w-[160px] bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 shadow-sm"
               >
-                {loadingGenerate ? (
+                {loading ? (
                   <span className="flex items-center gap-2">
                     <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
                     ⏳ Generando...
@@ -209,9 +203,9 @@ export default function Tutor() {
             </div>
           </div>
 
-          {errorGenerate && (
+          {error && (
             <div className="p-3 bg-red-50 border border-red-200 rounded-lg">
-              <p className="text-red-700 text-sm font-medium">{errorGenerate}</p>
+              <p className="text-red-700 text-sm font-medium">{error}</p>
             </div>
           )}
         </div>
@@ -257,16 +251,18 @@ export default function Tutor() {
 
                 {feedback[i] && (
                   <div
-                    className={`ml-9 p-3 rounded-lg ${feedback[i].includes("🎉")
-                      ? "bg-green-50 border border-green-200"
-                      : "bg-orange-50 border border-orange-200"
-                      }`}
+                    className={`ml-9 p-3 rounded-lg ${
+                      feedback[i].includes("🎉")
+                        ? "bg-green-50 border border-green-200"
+                        : "bg-orange-50 border border-orange-200"
+                    }`}
                   >
                     <p
-                      className={`font-semibold ${feedback[i].includes("🎉")
-                        ? "text-green-700"
-                        : "text-orange-700"
-                        }`}
+                      className={`font-semibold ${
+                        feedback[i].includes("🎉")
+                          ? "text-green-700"
+                          : "text-orange-700"
+                      }`}
                     >
                       {feedback[i]}
                     </p>
@@ -300,7 +296,6 @@ export default function Tutor() {
         <label className="block text-sm font-semibold text-slate-700 mb-2">
           📝 Escribe una reflexión crítica
         </label>
-
         <textarea
           rows={4}
           className="w-full rounded-xl border border-slate-300 bg-white p-4 text-sm focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all duration-200 resize-none shadow-sm"
@@ -309,93 +304,22 @@ export default function Tutor() {
           onChange={(e) => setOpenAnswer(e.target.value)}
         />
 
-        {/* Contador dinámico de caracteres */}
-        <div className="flex justify-between items-center mt-2">
-          <p
-            className={`text-sm font-medium ${openAnswer.trim().length === 0
-                ? "text-slate-400"
-                : openAnswer.trim().length < 50
-                  ? "text-orange-500"
-                  : "text-green-600"
-              }`}
-          >
-            {openAnswer.trim().length} / 50 caracteres mínimos
-          </p>
-          {openAnswer.trim().length > 0 && openAnswer.trim().length < 50 && (
-            <p className="text-orange-500 text-xs font-medium">
-              ⚠️ Escribe un poco más para una evaluación precisa.
-            </p>
-          )}
-        </div>
-
         <Button
           onClick={async () => {
-            // Limpiar estados anteriores
-            setErrorEvaluate("");
-            setOpenEval(null);
-
-            // ⚙️ Validaciones antes de enviar
-            if (!text.trim()) {
-              setErrorEvaluate("⚠️ Debes ingresar o subir un texto base antes de evaluar.");
-              return;
-            }
-
-            if (!openAnswer.trim()) {
-              setErrorEvaluate("⚠️ Debes escribir tu reflexión antes de evaluar.");
-              return;
-            }
-
-            if (openAnswer.trim().length < 50) {
-              setErrorEvaluate("⚠️ Tu reflexión debe tener al menos 50 caracteres para una evaluación adecuada.");
-              return;
-            }
-
-            setLoadingEvaluate(true);
-
-            try {
-              const resp = await fetch("/api/evaluate-open", {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ text, studentAnswer: openAnswer }),
-              });
-
-              const data = await resp.json();
-
-              if (!resp.ok) {
-                throw new Error(data.error || "Error al evaluar resumen.");
-              }
-
-              setOpenEval(data);
-            } catch (err: any) {
-              setErrorEvaluate(err.message || "Error desconocido al evaluar.");
-            } finally {
-              setLoadingEvaluate(false);
-            }
+            const resp = await fetch("/api/evaluate-open", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ text, studentAnswer: openAnswer }),
+            });
+            const data = await resp.json();
+            setOpenEval(data);
           }}
-          disabled={loadingEvaluate || openAnswer.trim().length < 50}
-          className={`mt-3 min-w-[160px] ${openAnswer.trim().length < 50
-              ? "bg-gray-400 cursor-not-allowed"
-              : "bg-gradient-to-r from-purple-600 to-purple-700 hover:from-purple-700 hover:to-purple-800"
-            } text-white shadow-sm transition-all duration-200`}
+          disabled={!openAnswer.trim()}
+          className="mt-3 min-w-[160px] bg-gradient-to-r from-purple-600 to-purple-700 hover:from-purple-700 hover:to-purple-800 text-white shadow-sm"
         >
-          {loadingEvaluate ? (
-            <span className="flex items-center gap-2">
-              <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
-              Evaluando...
-            </span>
-          ) : (
-            "📖 Evaluar resumen"
-          )}
+          📖 Evaluar resumen
         </Button>
 
-        {/* Mensaje de error si ocurre algo */}
-        {errorEvaluate && (
-          <div className="mt-3 p-3 bg-red-50 border border-red-200 rounded-lg">
-            <p className="text-red-700 text-sm font-medium">{errorEvaluate}</p>
-          </div>
-        )}
-
-        {/* Resultado de la evaluación */}
         {openEval && (
           <div className="mt-3 p-4 border-l-4 border-l-purple-500 bg-purple-50 rounded-lg">
             <p className="font-semibold text-purple-700 text-lg">
