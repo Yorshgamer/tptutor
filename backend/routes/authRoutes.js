@@ -10,6 +10,7 @@ const registerSchema = z.object({
   name: z.string().min(2).max(80),
   email: z.string().email(),
   password: z.string().min(8),
+  role: z.enum(["student", "teacher"]).optional().default("student"),
 });
 
 const loginSchema = z.object({
@@ -42,12 +43,18 @@ export async function auth(req, res, next) {
 // routes/authRoutes.js (solo el handler /register)
 router.post("/register", async (req, res) => {
   try {
-    const data = registerSchema.parse(req.body);
+    const data = registerSchema.parse({
+      ...req.body,
+      // por si vienen "Alumno/Profesor" o mayúsculas desde FE:
+      role: typeof req.body?.role === "string" ? req.body.role.toLowerCase() : undefined,
+    });
     const exists = await User.findOne({ email: data.email });
     if (exists) return res.status(409).json({ ok:false, error:"EMAIL_IN_USE", message:"El correo ya está en uso" });
+    
+    const safeRole = (data.role === "teacher" || data.role === "student") ? data.role : "student";
 
     const passwordHash = await User.hashPassword(data.password, Number(process.env.BCRYPT_ROUNDS || 12));
-    const user = await User.create({ email: data.email, name: data.name, passwordHash });
+    const user = await User.create({ email: data.email, name: data.name, passwordHash, role: safeRole });
 
     // firma token (si falla, borra user para no dejar basura)
     let token;

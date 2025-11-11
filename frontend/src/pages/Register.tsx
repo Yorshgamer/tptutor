@@ -12,12 +12,14 @@ export default function Register() {
     email: "",
     p1: "",
     p2: "",
+    role: "student", // "student" | "teacher"
   });
   const [loading, setLoading] = useState(false);
   const [msg, setMsg] = useState<Msg>({ type: "", text: "" });
 
-  const handleChange = (e: ChangeEvent<HTMLInputElement>) => {
-    setForm({ ...form, [e.target.id]: e.target.value });
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
+    const { id, value } = e.target;
+    setForm(prev => ({ ...prev, [id]: value }));
   };
 
   const handleSubmit = async (e: FormEvent<HTMLFormElement>) => {
@@ -41,6 +43,7 @@ export default function Register() {
             name: form.name,
             email: form.email,
             password: form.p1, // ✅ el backend espera "password"
+            role: form.role, // 👈 enviar role
           }),
         }
       );
@@ -66,7 +69,7 @@ export default function Register() {
         text: token ? "Cuenta creada. Sesión iniciada ✅" : (payload?.message || "Usuario registrado ✅"),
       });
 
-      setForm({ name: "", email: "", p1: "", p2: "" });
+      setForm({ name: "", email: "", p1: "", p2: "", role: "student" });
 
       // Redirección opcional inmediata:
       // if (token) window.location.href = "/tutor";
@@ -108,6 +111,21 @@ export default function Register() {
               className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-600"
               placeholder="tu@correo.com"
             />
+          </div>
+
+          <div>
+            <label htmlFor="role" className="block text-sm font-medium mb-1">
+              Rol
+            </label>
+            <select
+              id="role"
+              value={form.role}
+              onChange={handleChange}
+              className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-600"
+            >
+              <option value="student">Alumno</option>
+              <option value="teacher">Profesor</option>
+            </select>
           </div>
 
           <div>

@@ -22,10 +22,10 @@ async function request(path, opts = {}) {
   return json.data ?? json;
 }
 
-export async function registerUser({ name, email, password }) {
+export async function registerUser({ name, email, password, role = "student" }) {
   return request('/api/auth/register', {
     method: 'POST',
-    body: JSON.stringify({ name, email, password })
+    body: JSON.stringify({ name, email, password, role })
   });
 }
 
