@@ -4,10 +4,13 @@ import Tag from "../components/Tag";
 import Button from "../components/Button";
 
 /**
- * Projects.tsx — vista con CRUD básico usando una API mock (localStorage).
+ * Projects.tsx — Vista dual por rol
  *
- * Cuando tengas backend, reemplaza las funciones de `api` por tus llamadas reales
- * (fetch/axios) y elimina el flag USE_MOCK. Mantuvimos las firmas para que no cambie tu UI.
+ * - STUDENT: CRUD + progreso propio por proyecto (mock localStorage)
+ * - TEACHER/ADMIN: Sustituye pestaña por un roster de estudiantes y estados de sus proyectos
+ *
+ * Persistencia en localStorage (API mock). Cuando conectes backend, reemplaza `api`, `apiProgress`
+ * y `apiUsers` por tus endpoints reales, manteniendo las firmas.
  */
 
 // -----------------------------
@@ -18,11 +21,22 @@ type ProjectStatus = "pending" | "in_progress" | "done";
 
 type Project = {
   id: string; // UUID
+  ownerId: string; // propietario
   name: string;
   description?: string;
   status: ProjectStatus;
   tags: string[];
   createdAt: string;
+  updatedAt: string;
+};
+
+type User = { id: string; name: string; email: string; role: "student" | "teacher" | "admin" };
+
+type ProgressEntry = {
+  projectId: string;
+  userId: string;
+  percent: number; // 0-100
+  note?: string;
   updatedAt: string;
 };
 
@@ -38,33 +52,71 @@ const STATUS_CHIP: Record<ProjectStatus, string> = {
   done: "inline-flex rounded-lg bg-green-100 px-2.5 py-1 text-green-800",
 };
 
-const uid = () => crypto.randomUUID?.() ?? Math.random().toString(36).slice(2);
+const uid = () => (crypto.randomUUID?.() ?? Math.random().toString(36).slice(2));
+
+function getCurrentUser(): User | null {
+  try {
+    const raw = localStorage.getItem("user");
+    return raw ? JSON.parse(raw) : null;
+  } catch {
+    return null;
+  }
+}
 
 // -----------------------------
 // API mock (localStorage)
 // -----------------------------
 
-const LS_KEY = "tptutor.projects";
-const USE_MOCK = true; // cambia a false cuando conectes backend real
+const LS_PROJECTS = "tptutor.projects";
+const LS_PROGRESS = "tptutor.progress"; // array<ProgressEntry>
+const LS_USERS = "tptutor.users"; // directorio básico de usuarios (solo para vista teacher)
+const USE_MOCK = true;
 
-function readLS(): Project[] {
+function readJSON<T>(key: string, fallback: T): T {
   try {
-    const raw = localStorage.getItem(LS_KEY);
-    if (!raw) return [];
-    const arr = JSON.parse(raw);
-    return Array.isArray(arr) ? arr : [];
+    const raw = localStorage.getItem(key);
+    return raw ? (JSON.parse(raw) as T) : fallback;
   } catch {
-    return [];
+    return fallback;
   }
 }
 
-function writeLS(items: Project[]) {
-  localStorage.setItem(LS_KEY, JSON.stringify(items));
+function writeJSON<T>(key: string, value: T) {
+  localStorage.setItem(key, JSON.stringify(value));
 }
 
+function upsertCurrentUserDirectory() {
+  const me = getCurrentUser();
+  if (!me) return;
+  const all = readJSON<User[]>(LS_USERS, []);
+  const idx = all.findIndex((u) => u.id === me.id);
+  if (idx === -1) all.push(me); else all[idx] = me;
+  writeJSON(LS_USERS, all);
+}
+
+const apiUsers = {
+  async listStudents() {
+    const all = readJSON<User[]>(LS_USERS, []);
+    await new Promise((r) => setTimeout(r, 40));
+    return all.filter((u) => u.role === "student");
+  },
+  async getById(id: string) {
+    const all = readJSON<User[]>(LS_USERS, []);
+    await new Promise((r) => setTimeout(r, 30));
+    return all.find((u) => u.id === id) || null;
+  },
+};
+
 const api = {
-  async list(params?: { q?: string; status?: "all" | ProjectStatus }) {
-    let items = readLS();
+  async list(params?: { q?: string; status?: "all" | ProjectStatus; ownerId?: string }) {
+    const me = getCurrentUser();
+    if (!me) throw new Error("NO_USER");
+    let items = readJSON<Project[]>(LS_PROJECTS, []);
+
+    // por defecto, si no especificas ownerId, filtra por el usuario actual
+    const owner = params?.ownerId ?? me.id;
+    items = items.filter((p) => p.ownerId === owner);
+
     if (params?.q) {
       const q = params.q.toLowerCase();
       items = items.filter(
@@ -77,46 +129,91 @@ const api = {
     if (params?.status && params.status !== "all") {
       items = items.filter((p) => p.status === params.status);
     }
-    // Simula latencia ligera
-    await new Promise((r) => setTimeout(r, 150));
+    await new Promise((r) => setTimeout(r, 100));
     return items.sort((a, b) => b.updatedAt.localeCompare(a.updatedAt));
   },
-  async create(input: Omit<Project, "id" | "createdAt" | "updatedAt">) {
+  async create(input: Omit<Project, "id" | "createdAt" | "updatedAt" | "ownerId">) {
+    const me = getCurrentUser();
+    if (!me) throw new Error("NO_USER");
     const now = new Date().toISOString();
-    const item: Project = { ...input, id: uid(), createdAt: now, updatedAt: now };
-    const items = readLS();
+    const item: Project = { ...input, id: uid(), ownerId: me.id, createdAt: now, updatedAt: now };
+    const items = readJSON<Project[]>(LS_PROJECTS, []);
     items.push(item);
-    writeLS(items);
-    await new Promise((r) => setTimeout(r, 120));
+    writeJSON(LS_PROJECTS, items);
+    await new Promise((r) => setTimeout(r, 80));
     return item;
   },
-  async update(id: string, patch: Partial<Omit<Project, "id" | "createdAt">>) {
-    const items = readLS();
-    const idx = items.findIndex((p) => p.id === id);
-    if (idx === -1) throw new Error("NOT_FOUND");
-    const updated = {
-      ...items[idx],
-      ...patch,
-      updatedAt: new Date().toISOString(),
-    } as Project;
+  async update(id: string, patch: Partial<Omit<Project, "id" | "createdAt" | "ownerId">>) {
+    const me = getCurrentUser();
+    if (!me) throw new Error("NO_USER");
+    const items = readJSON<Project[]>(LS_PROJECTS, []);
+    const idx = items.findIndex((p) => p.id === id && p.ownerId === me.id);
+    if (idx === -1) throw new Error("NOT_FOUND_OR_FORBIDDEN");
+    const updated: Project = { ...items[idx], ...patch, updatedAt: new Date().toISOString() };
     items[idx] = updated;
-    writeLS(items);
-    await new Promise((r) => setTimeout(r, 120));
+    writeJSON(LS_PROJECTS, items);
+    await new Promise((r) => setTimeout(r, 80));
     return updated;
   },
   async remove(id: string) {
-    const items = readLS();
-    const next = items.filter((p) => p.id !== id);
-    writeLS(next);
-    await new Promise((r) => setTimeout(r, 120));
+    const me = getCurrentUser();
+    if (!me) throw new Error("NO_USER");
+    const items = readJSON<Project[]>(LS_PROJECTS, []);
+    const exists = items.find((p) => p.id === id && p.ownerId === me.id);
+    if (!exists) throw new Error("NOT_FOUND_OR_FORBIDDEN");
+    writeJSON(LS_PROJECTS, items.filter((p) => !(p.id === id && p.ownerId === me.id)));
+    // limpiar progreso asociado
+    const progress = readJSON<ProgressEntry[]>(LS_PROGRESS, []);
+    writeJSON(LS_PROGRESS, progress.filter((x) => x.projectId !== id));
+    await new Promise((r) => setTimeout(r, 60));
     return { ok: true } as const;
   },
-  async get(id: string) {
-    const items = readLS();
-    const found = items.find((p) => p.id === id);
-    await new Promise((r) => setTimeout(r, 100));
-    if (!found) throw new Error("NOT_FOUND");
+  async get(id: string, ownerId?: string) {
+    const me = getCurrentUser();
+    if (!me) throw new Error("NO_USER");
+    const owner = ownerId ?? me.id;
+    const items = readJSON<Project[]>(LS_PROJECTS, []);
+    const found = items.find((p) => p.id === id && p.ownerId === owner);
+    await new Promise((r) => setTimeout(r, 60));
+    if (!found) throw new Error("NOT_FOUND_OR_FORBIDDEN");
     return found;
+  },
+};
+
+const apiProgress = {
+  async upsertMine(projectId: string, payload: { percent: number; note?: string }) {
+    const user = getCurrentUser();
+    if (!user) throw new Error("NO_USER");
+    const all = readJSON<ProgressEntry[]>(LS_PROGRESS, []);
+    const idx = all.findIndex((x) => x.projectId === projectId && x.userId === user.id);
+    const entry: ProgressEntry = {
+      projectId,
+      userId: user.id,
+      percent: Math.max(0, Math.min(100, Math.round(payload.percent))),
+      note: payload.note?.trim() || "",
+      updatedAt: new Date().toISOString(),
+    };
+    if (idx === -1) all.push(entry); else all[idx] = entry;
+    writeJSON(LS_PROGRESS, all);
+    await new Promise((r) => setTimeout(r, 60));
+    return entry;
+  },
+  async getMine(projectId: string) {
+    const user = getCurrentUser();
+    if (!user) throw new Error("NO_USER");
+    const all = readJSON<ProgressEntry[]>(LS_PROGRESS, []);
+    await new Promise((r) => setTimeout(r, 40));
+    return all.find((x) => x.projectId === projectId && x.userId === user.id) || null;
+  },
+  async listByProject(projectId: string) {
+    const all = readJSON<ProgressEntry[]>(LS_PROGRESS, []);
+    await new Promise((r) => setTimeout(r, 40));
+    return all.filter((x) => x.projectId === projectId);
+  },
+  async listByUser(userId: string) {
+    const all = readJSON<ProgressEntry[]>(LS_PROGRESS, []);
+    await new Promise((r) => setTimeout(r, 40));
+    return all.filter((x) => x.userId === userId);
   },
 };
 
@@ -124,38 +221,16 @@ const api = {
 // Componentes auxiliares
 // -----------------------------
 
-type FormState = {
-  name: string;
-  description: string;
-  status: ProjectStatus;
-  tags: string; // CSV en UI; internamente convertimos a string[]
-};
+type FormState = { name: string; description: string; status: ProjectStatus; tags: string };
 
-const emptyForm: FormState = {
-  name: "",
-  description: "",
-  status: "in_progress",
-  tags: "",
-};
+const emptyForm: FormState = { name: "", description: "", status: "in_progress", tags: "" };
 
-function toTags(csv: string): string[] {
-  return csv
-    .split(",")
-    .map((t) => t.trim())
-    .filter(Boolean);
-}
-
-function fromTags(arr: string[]): string {
-  return arr?.join(", ") ?? "";
-}
+function toTags(csv: string): string[] { return csv.split(",").map((t) => t.trim()).filter(Boolean); }
+function fromTags(arr: string[]): string { return arr?.join(", ") ?? ""; }
 
 function StatusSelect({ value, onChange }: { value: ProjectStatus; onChange: (v: ProjectStatus) => void }) {
   return (
-    <select
-      value={value}
-      onChange={(e) => onChange(e.target.value as ProjectStatus)}
-      className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-600"
-    >
+    <select value={value} onChange={(e) => onChange(e.target.value as ProjectStatus)} className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-600">
       <option value="in_progress">En curso</option>
       <option value="pending">Pendiente</option>
       <option value="done">Completado</option>
@@ -167,11 +242,20 @@ function StatusChip({ status }: { status: ProjectStatus }) {
   return <span className={STATUS_CHIP[status]}>{STATUS_LABEL[status]}</span>;
 }
 
+function ProgressBar({ value }: { value: number }) {
+  const v = Math.max(0, Math.min(100, Math.round(value)));
+  return (
+    <div className="w-40 rounded-xl border border-slate-200">
+      <div className="h-2 rounded-xl bg-blue-600" style={{ width: `${v}%` }} />
+    </div>
+  );
+}
+
 function Modal({ open, onClose, children, title }: { open: boolean; onClose: () => void; title: string; children: React.ReactNode }) {
   if (!open) return null;
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
-      <div className="w-full max-w-xl rounded-2xl bg-white shadow-xl">
+      <div className="w-full max-w-4xl rounded-2xl bg-white shadow-xl">
         <div className="flex items-center justify-between border-b px-5 py-3">
           <h3 className="text-base font-semibold">{title}</h3>
           <button onClick={onClose} className="rounded-lg px-2 py-1 text-slate-500 hover:bg-slate-100">✕</button>
@@ -183,10 +267,24 @@ function Modal({ open, onClose, children, title }: { open: boolean; onClose: () 
 }
 
 // -----------------------------
-// Página principal — Projects
+// Página principal — Render por rol
 // -----------------------------
 
 export default function Projects() {
+  // Garantiza que el usuario actual exista en el directorio (para vista Teacher)
+  useEffect(() => { upsertCurrentUserDirectory(); }, []);
+
+  const me = getCurrentUser();
+  const isTeacher = me?.role === "teacher" || me?.role === "admin";
+
+  return isTeacher ? <TeacherView /> : <StudentView />;
+}
+
+// -----------------------------
+// Vista STUDENT — CRUD + progreso propio
+// -----------------------------
+
+function StudentView() {
   const [items, setItems] = useState<Project[]>([]);
   const [loading, setLoading] = useState(true);
   const [q, setQ] = useState("");
@@ -195,83 +293,45 @@ export default function Projects() {
   const [showCreate, setShowCreate] = useState(false);
   const [showEdit, setShowEdit] = useState<{ open: boolean; id?: string }>({ open: false });
   const [showView, setShowView] = useState<{ open: boolean; id?: string }>({ open: false });
+  const [showProgress, setShowProgress] = useState<{ open: boolean; id?: string }>({ open: false });
 
-  const filteredCount = items.length;
-
-  // Cargar al inicio o cuando cambie filtro
   useEffect(() => {
     let alive = true;
     setLoading(true);
-    api
-      .list({ q, status })
-      .then((data) => {
-        if (alive) setItems(data);
-      })
-      .finally(() => alive && setLoading(false));
-    return () => {
-      alive = false;
-    };
+    api.list({ q, status }).then((data) => alive && setItems(data)).finally(() => alive && setLoading(false));
+    return () => { alive = false; };
   }, [q, status]);
 
-  // Handlers CRUD
   async function handleCreate(form: FormState) {
-    const payload = {
-      name: form.name.trim(),
-      description: form.description.trim(),
-      status: form.status,
-      tags: toTags(form.tags),
-    } as Omit<Project, "id" | "createdAt" | "updatedAt">;
-    const created = await api.create(payload);
+    const created = await api.create({ name: form.name.trim(), description: form.description.trim(), status: form.status, tags: toTags(form.tags) });
     setItems((prev) => [created, ...prev]);
   }
-
   async function handleUpdate(id: string, form: FormState) {
-    const patch = {
-      name: form.name.trim(),
-      description: form.description.trim(),
-      status: form.status,
-      tags: toTags(form.tags),
-    } as Partial<Project>;
-    const updated = await api.update(id, patch);
+    const updated = await api.update(id, { name: form.name.trim(), description: form.description.trim(), status: form.status, tags: toTags(form.tags) });
     setItems((prev) => prev.map((p) => (p.id === id ? updated : p)));
   }
-
   async function handleDelete(id: string) {
     if (!confirm("¿Eliminar este proyecto?")) return;
     await api.remove(id);
     setItems((prev) => prev.filter((p) => p.id !== id));
   }
 
-  // -----------------------------
-  // UI
-  // -----------------------------
-
   return (
     <div className="space-y-6">
-      <Card title="Proyectos" subtitle="Filtra y crea proyectos">
+      <Card title="Mis Proyectos" subtitle="Filtra y crea proyectos">
         <div className="flex flex-wrap items-center gap-3">
           <div className="relative">
             <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-slate-400">🔎</span>
-            <input
-              className="pl-9 rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-600"
-              placeholder="Buscar…"
-              value={q}
-              onChange={(e) => setQ(e.target.value)}
-            />
+            <input className="pl-9 rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-600" placeholder="Buscar…" value={q} onChange={(e) => setQ(e.target.value)} />
           </div>
-
-          <select
-            className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-600"
-            value={status}
-            onChange={(e) => setStatus(e.target.value as any)}
-          >
+          <select className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-600" value={status} onChange={(e) => setStatus(e.target.value as any)}>
             <option value="all">Todos</option>
             <option value="in_progress">En curso</option>
             <option value="done">Completado</option>
             <option value="pending">Pendiente</option>
           </select>
-
-          <div className="ml-auto">
+          <div className="ml-auto flex items-center gap-2">
+            {USE_MOCK && <span className="rounded-lg bg-slate-100 px-2 py-1 text-sm text-slate-600">mock/localStorage</span>}
             <Button variant="secondary" onClick={() => setShowCreate(true)}>➕ Nuevo proyecto</Button>
           </div>
         </div>
@@ -279,8 +339,7 @@ export default function Projects() {
 
       <Card>
         <div className="flex items-center justify-between pb-2 text-sm text-slate-500">
-          <span>{loading ? "Cargando…" : `${filteredCount} proyecto(s)`}</span>
-          {USE_MOCK && <span className="rounded-lg bg-slate-100 px-2 py-1">mock/localStorage</span>}
+          <span>{loading ? "Cargando…" : `${items.length} proyecto(s)`}</span>
         </div>
         <div className="overflow-x-auto">
           <table className="min-w-full text-sm">
@@ -289,75 +348,210 @@ export default function Projects() {
                 <th className="py-2 pr-4">Proyecto</th>
                 <th className="py-2 pr-4">Estado</th>
                 <th className="py-2 pr-4">Tags</th>
+                <th className="py-2 pr-4">Mi progreso</th>
                 <th className="py-2">Acciones</th>
               </tr>
             </thead>
             <tbody className="align-top text-slate-800">
               {items.map((p) => (
-                <tr key={p.id} className="border-t">
-                  <td className="py-3 pr-4 font-medium">
-                    <div className="font-semibold">{p.name}</div>
-                    {p.description && <div className="text-xs text-slate-500 line-clamp-2">{p.description}</div>}
-                  </td>
-                  <td className="py-3 pr-4"><StatusChip status={p.status} /></td>
-                  <td className="py-3 pr-4">
-                    <div className="flex flex-wrap gap-2">
-                      {p.tags?.map((t, i) => (
-                        <Tag key={i}>{t}</Tag>
-                      ))}
-                    </div>
-                  </td>
-                  <td className="py-3">
-                    <div className="flex gap-2">
-                      <Button variant="ghost" onClick={() => setShowView({ open: true, id: p.id })}>Ver</Button>
-                      <Button variant="subtle" onClick={() => setShowEdit({ open: true, id: p.id })}>Editar</Button>
-                      <Button variant="danger" onClick={() => handleDelete(p.id)}>Eliminar</Button>
-                    </div>
-                  </td>
-                </tr>
+                <Row key={p.id} p={p} onView={() => setShowView({ open: true, id: p.id })} onEdit={() => setShowEdit({ open: true, id: p.id })} onDelete={() => handleDelete(p.id)} onProgress={() => setShowProgress({ open: true, id: p.id })} />
               ))}
-
               {!loading && items.length === 0 && (
-                <tr>
-                  <td colSpan={4} className="py-6 text-center text-slate-500">Sin resultados</td>
-                </tr>
+                <tr><td colSpan={5} className="py-6 text-center text-slate-500">Sin resultados</td></tr>
               )}
             </tbody>
           </table>
         </div>
       </Card>
 
-      {/* Modal crear */}
-      <CreateModal
-        open={showCreate}
-        onClose={() => setShowCreate(false)}
-        onSubmit={async (data) => {
-          await handleCreate(data);
-          setShowCreate(false);
-        }}
-      />
-
-      {/* Modal ver */}
-      <ViewModal
-        ctx={showView}
-        onClose={() => setShowView({ open: false })}
-      />
-
-      {/* Modal editar */}
-      <EditModal
-        ctx={showEdit}
-        onClose={() => setShowEdit({ open: false })}
-        onSubmit={async (id, data) => {
-          await handleUpdate(id, data);
-          setShowEdit({ open: false });
-        }}
-      />
+      {/* Modales CRUD y Progreso */}
+      <CreateModal open={showCreate} onClose={() => setShowCreate(false)} onSubmit={async (data) => { await handleCreate(data); setShowCreate(false); }} />
+      <ViewModal ctx={showView} onClose={() => setShowView({ open: false })} />
+      <EditModal ctx={showEdit} onClose={() => setShowEdit({ open: false })} onSubmit={async (id, data) => { await handleUpdate(id, data); setShowEdit({ open: false }); }} />
+      <ProgressModal ctx={showProgress} onClose={() => setShowProgress({ open: false })} />
     </div>
   );
 }
 
+function Row({ p, onView, onEdit, onDelete, onProgress }: { p: Project; onView: () => void; onEdit: () => void; onDelete: () => void; onProgress: () => void }) {
+  const [mine, setMine] = useState<ProgressEntry | null>(null);
+  useEffect(() => { let alive = true; apiProgress.getMine(p.id).then((x) => alive && setMine(x)); return () => { alive = false; }; }, [p.id]);
+  return (
+    <tr className="border-t">
+      <td className="py-3 pr-4 font-medium">
+        <div className="font-semibold">{p.name}</div>
+        {p.description && <div className="text-xs text-slate-500 line-clamp-2">{p.description}</div>}
+      </td>
+      <td className="py-3 pr-4"><StatusChip status={p.status} /></td>
+      <td className="py-3 pr-4"><div className="flex flex-wrap gap-2">{p.tags?.map((t, i) => (<Tag key={i}>{t}</Tag>))}</div></td>
+      <td className="py-3 pr-4"><div className="flex items-center gap-3"><ProgressBar value={mine?.percent ?? 0} /><span className="w-10 text-right text-xs text-slate-500">{mine?.percent ?? 0}%</span></div></td>
+      <td className="py-3"><div className="flex gap-2"><Button variant="ghost" onClick={onView}>Ver</Button><Button variant="subtle" onClick={onEdit}>Editar</Button><Button variant="subtle" onClick={onProgress}>Progreso</Button><Button variant="danger" onClick={onDelete}>Eliminar</Button></div></td>
+    </tr>
+  );
+}
+
 // -----------------------------
-// Modales
+// Vista TEACHER — roster de estudiantes y estados
+// -----------------------------
+
+function TeacherView() {
+  const [students, setStudents] = useState<User[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [q, setQ] = useState("");
+  const [statusFilter, setStatusFilter] = useState<"all" | ProjectStatus>("all");
+
+  const [modal, setModal] = useState<{ open: boolean; studentId?: string }>({ open: false });
+
+  useEffect(() => {
+    let alive = true;
+    upsertCurrentUserDirectory();
+    setLoading(true);
+    apiUsers.listStudents().then((data) => alive && setStudents(data)).finally(() => alive && setLoading(false));
+    return () => { alive = false; };
+  }, []);
+
+  const filtered = useMemo(() => {
+    const ql = q.toLowerCase();
+    return students.filter((s) => s.name.toLowerCase().includes(ql) || s.email.toLowerCase().includes(ql));
+  }, [students, q]);
+
+  return (
+    <div className="space-y-6">
+      <Card title="Estudiantes" subtitle="Revisa el estado de sus proyectos">
+        <div className="flex flex-wrap items-center gap-3">
+          <div className="relative">
+            <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-slate-400">🔎</span>
+            <input className="pl-9 rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-600" placeholder="Buscar estudiante…" value={q} onChange={(e) => setQ(e.target.value)} />
+          </div>
+          <select className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-600" value={statusFilter} onChange={(e) => setStatusFilter(e.target.value as any)}>
+            <option value="all">Todos los estados</option>
+            <option value="in_progress">En curso</option>
+            <option value="done">Completado</option>
+            <option value="pending">Pendiente</option>
+          </select>
+          <div className="ml-auto flex items-center gap-2">
+            {USE_MOCK && <span className="rounded-lg bg-slate-100 px-2 py-1 text-sm text-slate-600">mock/localStorage</span>}
+          </div>
+        </div>
+      </Card>
+
+      <Card>
+        <div className="flex items-center justify-between pb-2 text-sm text-slate-500">
+          <span>{loading ? "Cargando…" : `${filtered.length} estudiante(s)`}</span>
+        </div>
+        <div className="overflow-x-auto">
+          <table className="min-w-full text-sm">
+            <thead>
+              <tr className="text-left text-slate-500">
+                <th className="py-2 pr-4">Estudiante</th>
+                <th className="py-2 pr-4">Proyectos</th>
+                <th className="py-2 pr-4">Estados</th>
+                <th className="py-2 pr-4">Progreso medio</th>
+                <th className="py-2">Acciones</th>
+              </tr>
+            </thead>
+            <tbody className="align-top text-slate-800">
+              {filtered.map((s) => (
+                <TeacherRow key={s.id} student={s} statusFilter={statusFilter} onOpen={() => setModal({ open: true, studentId: s.id })} />
+              ))}
+              {!loading && filtered.length === 0 && (
+                <tr><td colSpan={5} className="py-6 text-center text-slate-500">Sin resultados</td></tr>
+              )}
+            </tbody>
+          </table>
+        </div>
+      </Card>
+
+      <TeacherStudentProjectsModal ctx={modal} onClose={() => setModal({ open: false })} />
+    </div>
+  );
+}
+
+function TeacherRow({ student, statusFilter, onOpen }: { student: User; statusFilter: "all" | ProjectStatus; onOpen: () => void }) {
+  const [stats, setStats] = useState<{ total: number; byStatus: Record<ProjectStatus, number>; avgProgress: number }>({ total: 0, byStatus: { pending: 0, in_progress: 0, done: 0 }, avgProgress: 0 });
+
+  useEffect(() => {
+    let alive = true;
+    (async () => {
+      const projects = await api.list({ ownerId: student.id });
+      const byStatus = { pending: 0, in_progress: 0, done: 0 } as Record<ProjectStatus, number>;
+      projects.forEach((p) => { byStatus[p.status]++; });
+
+      // progreso medio del propio estudiante en sus proyectos
+      const progress = await apiProgress.listByUser(student.id);
+      const ownProjectIds = new Set(projects.map((p) => p.id));
+      const ownEntries = progress.filter((e) => ownProjectIds.has(e.projectId));
+      const avg = ownEntries.length ? Math.round(ownEntries.reduce((a, b) => a + b.percent, 0) / ownEntries.length) : 0;
+
+      if (!alive) return;
+      setStats({ total: projects.length, byStatus, avgProgress: avg });
+    })();
+    return () => { alive = false; };
+  }, [student.id]);
+
+  const visibleTotal = statusFilter === "all" ? stats.total : stats.byStatus[statusFilter];
+
+  return (
+    <tr className="border-t">
+      <td className="py-3 pr-4 font-medium">
+        <div className="font-semibold">{student.name}</div>
+        <div className="text-xs text-slate-500">{student.email}</div>
+      </td>
+      <td className="py-3 pr-4">{visibleTotal}</td>
+      <td className="py-3 pr-4">
+        <div className="flex flex-wrap gap-2 items-center">
+          <span className="text-xs">Pend:</span><span className="text-xs font-semibold">{stats.byStatus.pending}</span>
+          <span className="text-xs">Curso:</span><span className="text-xs font-semibold">{stats.byStatus.in_progress}</span>
+          <span className="text-xs">Comp:</span><span className="text-xs font-semibold">{stats.byStatus.done}</span>
+        </div>
+      </td>
+      <td className="py-3 pr-4"><div className="flex items-center gap-3"><ProgressBar value={stats.avgProgress} /><span className="w-10 text-right text-xs text-slate-500">{stats.avgProgress}%</span></div></td>
+      <td className="py-3"><Button variant="subtle" onClick={onOpen}>Ver proyectos</Button></td>
+    </tr>
+  );
+}
+
+function TeacherStudentProjectsModal({ ctx, onClose }: { ctx: { open: boolean; studentId?: string }; onClose: () => void }) {
+  const [student, setStudent] = useState<User | null>(null);
+  const [items, setItems] = useState<Project[]>([]);
+  const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    let alive = true;
+    if (!ctx.open || !ctx.studentId) return;
+    setLoading(true);
+    Promise.all([apiUsers.getById(ctx.studentId), api.list({ ownerId: ctx.studentId })])
+      .then(([u, ps]) => { if (!alive) return; setStudent(u); setItems(ps); })
+      .finally(() => alive && setLoading(false));
+    return () => { alive = false; };
+  }, [ctx.open, ctx.studentId]);
+
+  return (
+    <Modal open={!!ctx.open} onClose={onClose} title={student ? `Proyectos de ${student.name}` : "Proyectos del estudiante"}>
+      {loading ? (
+        <p className="text-sm text-slate-500">Cargando…</p>
+      ) : (
+        <div className="space-y-4">
+          {items.length === 0 && <p className="text-sm text-slate-500">El estudiante no tiene proyectos.</p>}
+          {items.map((p) => (
+            <div key={p.id} className="rounded-xl border p-3">
+              <div className="mb-2 flex items-center gap-2">
+                <div className="font-semibold">{p.name}</div>
+                <StatusChip status={p.status} />
+              </div>
+              {p.description && <p className="text-slate-700 text-sm">{p.description}</p>}
+              <div className="mt-2 flex flex-wrap gap-2">{p.tags.map((t, i) => (<Tag key={i}>{t}</Tag>))}</div>
+            </div>
+          ))}
+          <div className="text-right"><Button variant="subtle" onClick={onClose}>Cerrar</Button></div>
+        </div>
+      )}
+    </Modal>
+  );
+}
+
+// -----------------------------
+// Modales comunes (Student)
 // -----------------------------
 
 function CreateModal({ open, onClose, onSubmit }: { open: boolean; onClose: () => void; onSubmit: (data: FormState) => Promise<void> }) {
@@ -365,30 +559,18 @@ function CreateModal({ open, onClose, onSubmit }: { open: boolean; onClose: () =
   const [busy, setBusy] = useState(false);
   const canSubmit = form.name.trim().length >= 3;
 
-  useEffect(() => {
-    if (!open) setForm(emptyForm);
-  }, [open]);
+  useEffect(() => { if (!open) setForm(emptyForm); }, [open]);
 
   return (
     <Modal open={open} onClose={onClose} title="Nuevo proyecto">
       <div className="space-y-4">
         <div>
           <label className="mb-1 block text-sm font-medium">Nombre</label>
-          <input
-            value={form.name}
-            onChange={(e) => setForm((p) => ({ ...p, name: e.target.value }))}
-            placeholder="Ej. Clasificador de Imágenes"
-            className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-600"
-          />
+          <input value={form.name} onChange={(e) => setForm((p) => ({ ...p, name: e.target.value }))} placeholder="Ej. Clasificador de Imágenes" className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-600" />
         </div>
         <div>
           <label className="mb-1 block text-sm font-medium">Descripción</label>
-          <textarea
-            value={form.description}
-            onChange={(e) => setForm((p) => ({ ...p, description: e.target.value }))}
-            rows={3}
-            className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-600"
-          />
+          <textarea value={form.description} onChange={(e) => setForm((p) => ({ ...p, description: e.target.value }))} rows={3} className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-600" />
         </div>
         <div className="flex items-center gap-3">
           <div>
@@ -397,25 +579,12 @@ function CreateModal({ open, onClose, onSubmit }: { open: boolean; onClose: () =
           </div>
           <div className="grow">
             <label className="mb-1 block text-sm font-medium">Tags (separados por coma)</label>
-            <input
-              value={form.tags}
-              onChange={(e) => setForm((p) => ({ ...p, tags: e.target.value }))}
-              placeholder="IA, Equipo, Docs"
-              className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-600"
-            />
+            <input value={form.tags} onChange={(e) => setForm((p) => ({ ...p, tags: e.target.value }))} placeholder="IA, Equipo, Docs" className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-600" />
           </div>
         </div>
-
         <div className="flex justify-end gap-2 pt-2">
           <Button variant="ghost" onClick={onClose} disabled={busy}>Cancelar</Button>
-          <Button
-            onClick={async () => {
-              if (!canSubmit) return;
-              setBusy(true);
-              try { await onSubmit(form); } finally { setBusy(false); }
-            }}
-            disabled={!canSubmit || busy}
-          >{busy ? "Guardando…" : "Guardar"}</Button>
+          <Button onClick={async () => { if (!canSubmit) return; setBusy(true); try { await onSubmit(form); } finally { setBusy(false); } }} disabled={!canSubmit || busy}>{busy ? "Guardando…" : "Guardar"}</Button>
         </div>
       </div>
     </Modal>
@@ -426,38 +595,18 @@ function ViewModal({ ctx, onClose }: { ctx: { open: boolean; id?: string }; onCl
   const [item, setItem] = useState<Project | null>(null);
   const [loading, setLoading] = useState(false);
 
-  useEffect(() => {
-    let alive = true;
-    if (!ctx.open || !ctx.id) return;
-    setLoading(true);
-    api.get(ctx.id)
-      .then((p) => alive && setItem(p))
-      .finally(() => alive && setLoading(false));
-    return () => { alive = false; };
-  }, [ctx.open, ctx.id]);
+  useEffect(() => { let alive = true; if (!ctx.open || !ctx.id) return; setLoading(true); api.get(ctx.id!).then((p) => alive && setItem(p)).finally(() => alive && setLoading(false)); return () => { alive = false; }; }, [ctx.open, ctx.id]);
 
   return (
     <Modal open={ctx.open} onClose={onClose} title="Detalle de proyecto">
       {loading && <p className="text-sm text-slate-500">Cargando…</p>}
       {!loading && item && (
         <div className="space-y-3">
-          <div className="flex items-center gap-3">
-            <h4 className="text-lg font-semibold">{item.name}</h4>
-            <StatusChip status={item.status} />
-          </div>
+          <div className="flex items-center gap-3"><h4 className="text-lg font-semibold">{item.name}</h4><StatusChip status={item.status} /></div>
           {item.description && <p className="text-slate-700">{item.description}</p>}
-          <div className="flex flex-wrap gap-2">
-            {item.tags.map((t, i) => (
-              <Tag key={i}>{t}</Tag>
-            ))}
-          </div>
-          <div className="text-xs text-slate-400">
-            <div>Creado: {new Date(item.createdAt).toLocaleString()}</div>
-            <div>Actualizado: {new Date(item.updatedAt).toLocaleString()}</div>
-          </div>
-          <div className="pt-2 text-right">
-            <Button variant="subtle" onClick={onClose}>Cerrar</Button>
-          </div>
+          <div className="flex flex-wrap gap-2">{item.tags.map((t, i) => (<Tag key={i}>{t}</Tag>))}</div>
+          <div className="text-xs text-slate-400"><div>Creado: {new Date(item.createdAt).toLocaleString()}</div><div>Actualizado: {new Date(item.updatedAt).toLocaleString()}</div></div>
+          <div className="pt-2 text-right"><Button variant="subtle" onClick={onClose}>Cerrar</Button></div>
         </div>
       )}
     </Modal>
@@ -469,78 +618,44 @@ function EditModal({ ctx, onClose, onSubmit }: { ctx: { open: boolean; id?: stri
   const [loading, setLoading] = useState(false);
   const [busy, setBusy] = useState(false);
 
-  useEffect(() => {
-    let alive = true;
-    if (!ctx.open || !ctx.id) return;
-    setLoading(true);
-    api
-      .get(ctx.id)
-      .then((p) => {
-        if (!alive) return;
-        setForm({
-          name: p.name,
-          description: p.description ?? "",
-          status: p.status,
-          tags: fromTags(p.tags),
-        });
-      })
-      .finally(() => alive && setLoading(false));
-    return () => {
-      alive = false;
-    };
-  }, [ctx.open, ctx.id]);
+  useEffect(() => { let alive = true; if (!ctx.open || !ctx.id) return; setLoading(true); api.get(ctx.id!).then((p) => { if (!alive) return; setForm({ name: p.name, description: p.description ?? "", status: p.status, tags: fromTags(p.tags) }); }).finally(() => alive && setLoading(false)); return () => { alive = false; }; }, [ctx.open, ctx.id]);
 
   const canSubmit = form.name.trim().length >= 3;
 
   return (
     <Modal open={!!ctx.open} onClose={onClose} title="Editar proyecto">
-      {loading ? (
-        <p className="text-sm text-slate-500">Cargando…</p>
-      ) : (
+      {loading ? (<p className="text-sm text-slate-500">Cargando…</p>) : (
         <div className="space-y-4">
-          <div>
-            <label className="mb-1 block text-sm font-medium">Nombre</label>
-            <input
-              value={form.name}
-              onChange={(e) => setForm((p) => ({ ...p, name: e.target.value }))}
-              className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-600"
-            />
-          </div>
-          <div>
-            <label className="mb-1 block text-sm font-medium">Descripción</label>
-            <textarea
-              value={form.description}
-              onChange={(e) => setForm((p) => ({ ...p, description: e.target.value }))}
-              rows={3}
-              className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-600"
-            />
-          </div>
-          <div className="flex items-center gap-3">
-            <div>
-              <label className="mb-1 block text-sm font-medium">Estado</label>
-              <StatusSelect value={form.status} onChange={(v) => setForm((p) => ({ ...p, status: v }))} />
-            </div>
-            <div className="grow">
-              <label className="mb-1 block text-sm font-medium">Tags (separados por coma)</label>
-              <input
-                value={form.tags}
-                onChange={(e) => setForm((p) => ({ ...p, tags: e.target.value }))}
-                className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-600"
-              />
-            </div>
-          </div>
+          <div><label className="mb-1 block text-sm font-medium">Nombre</label><input value={form.name} onChange={(e) => setForm((p) => ({ ...p, name: e.target.value }))} className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-600" /></div>
+          <div><label className="mb-1 block text-sm font-medium">Descripción</label><textarea value={form.description} onChange={(e) => setForm((p) => ({ ...p, description: e.target.value }))} rows={3} className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-600" /></div>
+          <div className="flex items-center gap-3"><div><label className="mb-1 block text-sm font-medium">Estado</label><StatusSelect value={form.status} onChange={(v) => setForm((p) => ({ ...p, status: v }))} /></div><div className="grow"><label className="mb-1 block text-sm font-medium">Tags (separados por coma)</label><input value={form.tags} onChange={(e) => setForm((p) => ({ ...p, tags: e.target.value }))} className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-600" /></div></div>
+          <div className="flex justify-end gap-2 pt-2"><Button variant="ghost" onClick={onClose} disabled={busy}>Cancelar</Button><Button onClick={async () => { if (!canSubmit || !ctx.id) return; setBusy(true); try { await onSubmit(ctx.id, form); } finally { setBusy(false); } }} disabled={!canSubmit || busy}>{busy ? "Guardando…" : "Guardar"}</Button></div>
+        </div>
+      )}
+    </Modal>
+  );
+}
 
-          <div className="flex justify-end gap-2 pt-2">
-            <Button variant="ghost" onClick={onClose} disabled={busy}>Cancelar</Button>
-            <Button
-              onClick={async () => {
-                if (!canSubmit || !ctx.id) return;
-                setBusy(true);
-                try { await onSubmit(ctx.id, form); } finally { setBusy(false); }
-              }}
-              disabled={!canSubmit || busy}
-            >{busy ? "Guardando…" : "Guardar"}</Button>
-          </div>
+// -----------------------------
+// Progreso — modal (Student)
+// -----------------------------
+
+function ProgressModal({ ctx, onClose }: { ctx: { open: boolean; id?: string }; onClose: () => void }) {
+  const [percent, setPercent] = useState<number>(0);
+  const [note, setNote] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [busy, setBusy] = useState(false);
+
+  useEffect(() => { let alive = true; if (!ctx.open || !ctx.id) return; setLoading(true); apiProgress.getMine(ctx.id).then((x) => { if (!alive) return; setPercent(x?.percent ?? 0); setNote(x?.note ?? ""); }).finally(() => alive && setLoading(false)); return () => { alive = false; }; }, [ctx.open, ctx.id]);
+
+  return (
+    <Modal open={!!ctx.open} onClose={onClose} title="Mi progreso">
+      {loading ? (<p className="text-sm text-slate-500">Cargando…</p>) : (
+        <div className="space-y-4">
+          <div><label className="mb-1 block text-sm font-medium">Porcentaje</label><input type="number" min={0} max={100} value={percent} onChange={(e) => setPercent(Number(e.target.value))} className="w-28 rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-600" /></div>
+          <div><label className="mb-1 block text-sm font-medium">Nota</label><textarea value={note} onChange={(e) => setNote(e.target.value)} rows={3} className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-600" /></div>
+          <div className="flex items-center justify-between text-xs text-slate-500"><span>0%</span><div className="grow px-3"><ProgressBar value={percent} /></div><span>100%</span></div>
+          <div className="flex justify-end gap-2 pt-2"><Button variant="ghost" onClick={onClose} disabled={busy}>Cancelar</Button><Button onClick={async () => { if (!ctx.id) return; setBusy(true); try { await apiProgress.upsertMine(ctx.id, { percent, note }); onClose(); } finally { setBusy(false); } }}>{busy ? "Guardando…" : "Guardar"}</Button></div>
         </div>
       )}
     </Modal>
