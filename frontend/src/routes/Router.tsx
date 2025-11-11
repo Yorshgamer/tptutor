@@ -5,6 +5,8 @@ import Projects from "../pages/Projects";
 import Tutor from "../pages/Tutor";
 import Login from "../pages/Login";
 import Register from "../pages/Register";
+import ProtectedRoute from "../auth/ProtectedRoute";
+import PublicOnlyRoute from "../auth/PublicOnlyRoute";
 
 const NotFound = () => (
   <div className="p-6">
@@ -14,10 +16,39 @@ const NotFound = () => (
 );
 
 export const router = createBrowserRouter([
-  { path: "/", element: <Layout><Home/></Layout> },
-  { path: "/projects", element: <Layout><Projects/></Layout> },
-  { path: "/tutor", element: <Layout><Tutor/></Layout> },
-  { path: "/login", element: <Layout><Login/></Layout> },
-  { path: "/register", element: <Layout><Register/></Layout> },
-  { path: "*", element: <Layout><NotFound/></Layout> },
+  // rutas públicas
+  {
+    path: "/login",
+    element: (
+      <PublicOnlyRoute>
+        <Layout />
+      </PublicOnlyRoute>
+    ),
+    children: [{ index: true, element: <Login /> }],
+  },
+  {
+    path: "/register",
+    element: (
+      <PublicOnlyRoute>
+        <Layout />
+      </PublicOnlyRoute>
+    ),
+    children: [{ index: true, element: <Register /> }],
+  },
+
+  // rutas protegidas
+  {
+    element: <ProtectedRoute />,
+    children: [
+      {
+        element: <Layout />,
+        children: [
+          { path: "/", element: <Home /> },
+          { path: "/projects", element: <Projects /> },
+          { path: "/tutor", element: <Tutor /> },
+          { path: "*", element: <NotFound /> },
+        ],
+      },
+    ],
+  },
 ]);

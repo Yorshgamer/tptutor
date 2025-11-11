@@ -1,0 +1,472 @@
+[33mcommit 8effe5614c6cde63e05a6367f08ddd7b14347e37[m[33m ([m[1;36mHEAD[m[33m -> [m[1;32mdevelop[m[33m, [m[1;31morigin/develop[m[33m)[m
+Author: Yorsh-dev <75707785@continental.edu.pe>
+Date:   Sun Nov 2 23:21:18 2025 -0500
+
+    no coverages
+
+[33mcommit f4327a8c75c2c74d6ddcd24c01f221651cc4f1a0[m
+Author: 71586559 <71586559@continental.edu.pe>
+Date:   Sun Nov 2 22:51:34 2025 -0500
+
+    feat(auth): conexión a MongoDB Atlas + login/register funcional
+
+[33mcommit 4a352cb837fdf0103e8fb3c04ab911d65a0e0da5[m
+Merge: 4b2d1d93 3d109d89
+Author: DekoXJ <147457476+DekoXJ@users.noreply.github.com>
+Date:   Thu Oct 30 23:59:02 2025 -0500
+
+    Merge pull request #2 from Yorshgamer/feature/mongo-connection
+    
+    feat(mongo): agregar conexión a MongoDB con Mongoose y configuración …
+
+[33mcommit 3d109d89376405c171609aeae45ded14886af228[m[33m ([m[1;31morigin/feature/mongo-connection[m[33m)[m
+Author: 71586559 <71586559@continental.edu.pe>
+Date:   Thu Oct 30 23:39:36 2025 -0500
+
+    feat(mongo): agregar conexión a MongoDB con Mongoose y configuración segura
+
+[33mcommit 4b2d1d93535199c78871b80ba0a491afee750172[m
+Author: Yorsh-dev <146681194+Yorshgamer@users.noreply.github.com>
+Date:   Tue Oct 7 18:40:54 2025 -0500
+
+    Update README.md
+
+[33mcommit 5e95c9846161d6db6e1ede03360e7d70028fee94[m
+Author: Yorsh-dev <75707785@continental.edu.pe>
+Date:   Tue Oct 7 17:40:10 2025 -0500
+
+    Gitignore actualizado
+
+[33mcommit 39a152f79843d8eb7bc0cbc4782e885a2fade288[m
+Author: Maplide <russplayadaqu666@gmail.com>
+Date:   Tue Oct 7 15:52:40 2025 -0500
+
+    test(frontend): estabiliza flujos en Tutor y asegura mensajes de error; coverage estable
+
+[33mcommit 4a1cf6da607db89c4e05fce7699f5dd5ae2dd7f6[m
+Merge: 66c67e40 4336281a
+Author: 71586559 <71586559@continental.edu.pe>
+Date:   Tue Oct 7 13:29:15 2025 -0500
+
+    Merge branch 'develop' of https://github.com/Yorshgamer/tptutor into develop
+
+[33mcommit 4336281a53681c1707aa3b84e51afaea9999dfbe[m
+Author: Yorsh-dev <75707785@continental.edu.pe>
+Date:   Tue Oct 7 13:29:26 2025 -0500
+
+    Se termina coverage y se sube procentaje del frontend
+
+[33mcommit 66c67e406226e1dec456b20158397e4b65604c6d[m
+Author: 71586559 <71586559@continental.edu.pe>
+Date:   Tue Oct 7 13:24:23 2025 -0500
+
+    Se finaliza el feature de MongoDB
+
+[33mcommit c380b47a3b22f0c868f8aea5aeb5136cec023714[m
+Author: Yorsh-dev <75707785@continental.edu.pe>
+Date:   Tue Oct 7 12:51:52 2025 -0500
+
+    coverage carpetas
+
+[33mcommit 15a0ff8fe92de2334b399f088e8aac724decd320[m
+Merge: 823e6fab 33c062bd
+Author: Yorsh-dev <75707785@continental.edu.pe>
+Date:   Tue Oct 7 12:31:30 2025 -0500
+
+    Se arregla conflicto de docker
+
+[33mcommit 33c062bde047d7eb37e034296eef1a738917bdf1[m
+Merge: ce98dfd7 92385cfe
+Author: Maplide <russplayadaqu666@gmail.com>
+Date:   Tue Oct 7 11:50:35 2025 -0500
+
+    merge: resolver conflictos al integrar feature/frontend-tests en develop (aceptar versión de la feature)
+
+[33mcommit 92385cfeb0ea1b3643300134dc33666c37569b45[m[33m ([m[1;31morigin/feature/frontend-tests[m[33m)[m
+Author: Maplide <russplayadaqu666@gmail.com>
+Date:   Tue Oct 7 11:43:56 2025 -0500
+
+    test(frontend): habilitar colores Jest y actualizar pruebas de Tutor.page
+
+[33mcommit 823e6fab265216f7e69fbc0461de36172f06c979[m
+Author: Yorsh-dev <75707785@continental.edu.pe>
+Date:   Tue Oct 7 03:07:49 2025 -0500
+
+    Se dockeriza test de backend
+
+[33mcommit daf1635fbdb0cda474db7db0bc0d4e90deeb0071[m
+Author: Yorsh-dev <75707785@continental.edu.pe>
+Date:   Tue Oct 7 02:44:42 2025 -0500
+
+    Se termina el login en memoria y el register en memoria se cambia el register y el login en el frontend
+
+[33mcommit 01a7302b999467be76de919c55a8e2b3d954b853[m
+Merge: a36a86de 7d983359
+Author: Yorsh-dev <75707785@continental.edu.pe>
+Date:   Tue Oct 7 02:26:20 2025 -0500
+
+    Merge branch 'feature/tests_de_backend' into develop
+
+[33mcommit 7d983359a0675b758311264528acb5ec1b57a8a5[m
+Author: Yorsh-dev <75707785@continental.edu.pe>
+Date:   Tue Oct 7 02:23:31 2025 -0500
+
+    Se añaden los tests de integracion y de los controladores
+
+[33mcommit 59e674f67feb1516355002b03000a4bc8a15e8fa[m
+Author: Yorsh-dev <75707785@continental.edu.pe>
+Date:   Tue Oct 7 01:13:44 2025 -0500
+
+    Preparación de carpetas (orden) para los tests y arregalr constantes del Tutor en frontend
+
+[33mcommit 2ec6c4efef130298aecd2fb88aea96abf6d74468[m
+Author: Yorsh-dev <75707785@continental.edu.pe>
+Date:   Tue Oct 7 00:15:36 2025 -0500
+
+    base para los tests
+
+[33mcommit a36a86de85f97d4dc8b1f88c8b28d62260869735[m
+Merge: ce98dfd7 4876bce8
+Author: Yorsh-dev <75707785@continental.edu.pe>
+Date:   Mon Oct 6 23:29:47 2025 -0500
+
+    Merge branch 'master' into develop
+
+[33mcommit 4876bce8e5622130bd1a7fb8a99446cd3c4e4b46[m[33m ([m[1;32mmaster[m[33m)[m
+Author: Jhonn <72659574@continental.edu.pe>
+Date:   Mon Oct 6 23:18:25 2025 -0500
+
+    ci: GitHub Actions Implementado
+
+[33mcommit 9309d9b290539f8f531240e0d12919dee20eecc6[m
+Author: Jhonn <72659574@continental.edu.pe>
+Date:   Mon Oct 6 23:09:04 2025 -0500
+
+    ci: corrige workflow para backend sin package-lock
+
+[33mcommit 14ddc663d9e1b3aa05497c27b0b50ab990df85a0[m
+Author: Jhonn <72659574@continental.edu.pe>
+Date:   Mon Oct 6 23:03:59 2025 -0500
+
+    ci: agrega GitHub Actions para backend
+
+[33mcommit ce98dfd767a6261a72a10108500d15eac4e14080[m
+Merge: 1f8b973c 30ed5ee0
+Author: Yorsh-dev <75707785@continental.edu.pe>
+Date:   Mon Oct 6 23:01:35 2025 -0500
+
+    Merge branch 'master' into develop
+
+[33mcommit 1f8b973c63da61752f1d998fe169628d3e4e4021[m
+Merge: 879794e5 b0a1870c
+Author: Yorsh-dev <75707785@continental.edu.pe>
+Date:   Mon Oct 6 23:00:08 2025 -0500
+
+    Merge branch 'develop' of https://github.com/Yorshgamer/tptutor into develop
+    Actualización del develop
+
+[33mcommit 30ed5ee06c4d133c67e6849e9a7f609d651c2b0d[m
+Author: Yorsh-dev <75707785@continental.edu.pe>
+Date:   Mon Oct 6 22:54:11 2025 -0500
+
+    Ajustes en backend y frontend Tutor para la IA funcionamiento Json y promp
+
+[33mcommit 05ce1820ee6f7b28ef1cda1dbf2016a228ce1b93[m
+Author: Maplide <russplayadaqu666@gmail.com>
+Date:   Mon Oct 6 22:21:42 2025 -0500
+
+    chore(frontend): actualizar package-lock.json tras cherry-pick de configuración de tests
+
+[33mcommit b49226e5d5ea3c088114986447ff532d6b7cc0f2[m
+Author: Maplide <russplayadaqu666@gmail.com>
+Date:   Mon Oct 6 22:01:38 2025 -0500
+
+    test: configuración de Jest, pruebas unitarias y actualización de .gitignore para el frontend
+
+[33mcommit 5316b5356cc01518b352c2a7faacdb9ee7bccee6[m
+Author: Maplide <russplayadaqu666@gmail.com>
+Date:   Mon Oct 6 22:01:38 2025 -0500
+
+    test: configuración de Jest, pruebas unitarias y actualización de .gitignore para el frontend
+
+[33mcommit 33bac0ad5695e0a85f5dbe41b9dd483bde860116[m
+Merge: c0967d52 501f1e9a
+Author: Yorsh-dev <75707785@continental.edu.pe>
+Date:   Tue Sep 30 17:52:23 2025 -0500
+
+    Merge branch 'master' of https://github.com/Yorshgamer/tptutor
+    Merge:
+
+[33mcommit c0967d523a6f3034fadc48516d185b481f99dc94[m
+Author: Yorsh-dev <75707785@continental.edu.pe>
+Date:   Tue Sep 30 17:52:09 2025 -0500
+
+    corrección del frontend Proyects.tsx
+
+[33mcommit 501f1e9ae44bd4016df8c73717134b825f30a030[m
+Author: Yorsh-dev <146681194+Yorshgamer@users.noreply.github.com>
+Date:   Tue Sep 30 17:48:27 2025 -0500
+
+    Actualización del README.md
+
+[33mcommit ca219664713ffd516554ebb2edb848ad824d2c63[m
+Author: Yorsh-dev <75707785@continental.edu.pe>
+Date:   Tue Sep 30 17:42:32 2025 -0500
+
+    Tutor tsx, index.js y documento del estado del proyecto
+
+[33mcommit 9905a45b3768500fc755663befd9b5f038144bcf[m
+Author: Yorsh-dev <75707785@continental.edu.pe>
+Date:   Mon Sep 29 19:02:33 2025 -0500
+
+    Se puede añadir Words
+
+[33mcommit 18f2f09b1afbd3ff078b5d0a29321458034e0334[m
+Author: Yorsh-dev <75707785@continental.edu.pe>
+Date:   Mon Sep 29 18:07:06 2025 -0500
+
+    Se añade ML para generar preguntas
+
+[33mcommit 5dff8c347d51838637c27453b3e6ec1571f297cb[m
+Author: Yorsh-dev <75707785@continental.edu.pe>
+Date:   Tue Sep 16 19:43:11 2025 -0500
+
+    Documentacion git
+
+[33mcommit 85769338f71df6d9feba9e77146ce8095dcb2ddf[m
+Author: Yorsh-dev <75707785@continental.edu.pe>
+Date:   Tue Sep 16 19:17:41 2025 -0500
+
+    Se añade estructura de carpetas y corrige nombres
+
+[33mcommit 1995686ae7e9ca64524a66bf02fb15138c8098c4[m
+Author: Yorsh-dev <75707785@continental.edu.pe>
+Date:   Tue Sep 9 16:21:31 2025 -0500
+
+    Add .env to gitignore
+
+[33mcommit f82f0c038fdca958447922922c1968718f6a775c[m
+Author: Yorsh-dev <75707785@continental.edu.pe>
+Date:   Tue Sep 9 16:20:15 2025 -0500
+
+    Docs
+
+[33mcommit f48fbb3811aa62c3e42477e62970c0cdeee2a840[m
+Author: Yorsh-dev <75707785@continental.edu.pe>
+Date:   Tue Sep 9 16:13:17 2025 -0500
+
+    Add .env to gitignore
+
+[33mcommit 879794e5beb34faf337ba1947c5a86a394b9c42b[m
+Merge: cc0b6448 9ec2b15e
+Author: Alfredo / Maplide / RussP <russplayadaqu666@gmail.com>
+Date:   Sat Aug 23 12:18:42 2025 -0500
+
+    chore: back-merge v0.1.0 desde master
+
+[33mcommit b0a1870ce844ac7eb0e38388df6fc4ff5ab3ea70[m
+Merge: 6d6275cc 15e6b0fa
+Author: Alfredo / Maplide / RussP <russplayadaqu666@gmail.com>
+Date:   Sat Aug 23 12:18:42 2025 -0500
+
+    chore: back-merge v0.1.0 desde master
+
+[33mcommit 9ec2b15ea0bed177c4e577c7b21f8a5dfb207c91[m[33m ([m[1;33mtag: [m[1;33mv0.1.0[m[33m)[m
+Merge: 35c24328 cc0b6448
+Author: Alfredo / Maplide / RussP <russplayadaqu666@gmail.com>
+Date:   Sat Aug 23 12:17:46 2025 -0500
+
+    release(v0.1.0): frontend base (tema claro, layout, router)
+
+[33mcommit 15e6b0fa20bf003f698e8c7f78e0371643b528e9[m
+Merge: b74635f3 6d6275cc
+Author: Alfredo / Maplide / RussP <russplayadaqu666@gmail.com>
+Date:   Sat Aug 23 12:17:46 2025 -0500
+
+    release(v0.1.0): frontend base (tema claro, layout, router)
+
+[33mcommit cc0b6448b0becde600a9a343da74b37d989e9e86[m
+Merge: 35c24328 75901f87
+Author: Alfredo / Maplide / RussP <russplayadaqu666@gmail.com>
+Date:   Sat Aug 23 12:14:52 2025 -0500
+
+    layout tema claro + sidebar + rutas
+
+[33mcommit 6d6275cc00d42675b5542c3b66da745a67008782[m
+Merge: b74635f3 658d5ffd
+Author: Alfredo / Maplide / RussP <russplayadaqu666@gmail.com>
+Date:   Sat Aug 23 12:14:52 2025 -0500
+
+    layout tema claro + sidebar + rutas
+
+[33mcommit 75901f879e523c3e18f3ce2c169b08c5858a022e[m
+Author: Alfredo / Maplide / RussP <russplayadaqu666@gmail.com>
+Date:   Fri Aug 22 23:14:27 2025 -0500
+
+    Integrando layout con rutas hijas
+
+[33mcommit 658d5ffd196cc87da8fe7fab8e5a499f5e556de1[m
+Author: Alfredo / Maplide / RussP <russplayadaqu666@gmail.com>
+Date:   Fri Aug 22 23:14:27 2025 -0500
+
+    Integrando layout con rutas hijas
+
+[33mcommit 695b3f5aa46af392747250a1608263acf0c6f8c4[m
+Author: Alfredo / Maplide / RussP <russplayadaqu666@gmail.com>
+Date:   Fri Aug 22 23:09:23 2025 -0500
+
+    Mejorando los pages: Home, Projects, Tutor, Login y Register
+
+[33mcommit 36439676341e826861edfedc72c0c8f318569372[m
+Author: Alfredo / Maplide / RussP <russplayadaqu666@gmail.com>
+Date:   Fri Aug 22 23:09:23 2025 -0500
+
+    Mejorando los pages: Home, Projects, Tutor, Login y Register
+
+[33mcommit e1d4985e9418379ea6a5e706674d742a8473fedb[m
+Author: Alfredo / Maplide / RussP <russplayadaqu666@gmail.com>
+Date:   Fri Aug 22 23:07:48 2025 -0500
+
+    Mejorando el header, Layout, Sidebar y SideNav
+
+[33mcommit a30d1b34bd7985e3f50e357a5d9019e8bcfcbc38[m
+Author: Alfredo / Maplide / RussP <russplayadaqu666@gmail.com>
+Date:   Fri Aug 22 23:07:48 2025 -0500
+
+    Mejorando el header, Layout, Sidebar y SideNav
+
+[33mcommit 0261153933b0c0250cb1a3fd668b3c10cb3e4782[m
+Author: Alfredo / Maplide / RussP <russplayadaqu666@gmail.com>
+Date:   Fri Aug 22 23:04:32 2025 -0500
+
+    Creando Button y Tag, aparte mejorando Card reutilizables
+
+[33mcommit 8506004d08161665ed94b5fe709361008b6c4fc7[m
+Author: Alfredo / Maplide / RussP <russplayadaqu666@gmail.com>
+Date:   Fri Aug 22 23:04:32 2025 -0500
+
+    Creando Button y Tag, aparte mejorando Card reutilizables
+
+[33mcommit f54263b52dbc7041390577ede334ed2e82ab2ca3[m
+Author: Alfredo / Maplide / RussP <russplayadaqu666@gmail.com>
+Date:   Fri Aug 22 23:02:19 2025 -0500
+
+    Mejorando la base del estilo
+
+[33mcommit 09b6d4b771104c73e5372b82784dea4ee514f8c3[m
+Author: Alfredo / Maplide / RussP <russplayadaqu666@gmail.com>
+Date:   Fri Aug 22 23:02:19 2025 -0500
+
+    Mejorando la base del estilo
+
+[33mcommit 8a4e27c6942c8154baf953e39afacd3e2c0c5260[m
+Author: Alfredo / Maplide / RussP <russplayadaqu666@gmail.com>
+Date:   Fri Aug 22 22:48:18 2025 -0500
+
+    Se agrega en el frontend el layout con header y sidebar
+
+[33mcommit 3f1addcd6acab038aa80f8f31ba850d15632192c[m
+Author: Alfredo / Maplide / RussP <russplayadaqu666@gmail.com>
+Date:   Fri Aug 22 22:48:18 2025 -0500
+
+    Se agrega en el frontend el layout con header y sidebar
+
+[33mcommit 40c31519b9254a34f651df8660458424683b94a3[m
+Author: Alfredo / Maplide / RussP <russplayadaqu666@gmail.com>
+Date:   Fri Aug 22 22:39:04 2025 -0500
+
+    Mejorando la interfaz clasico a  moderno
+
+[33mcommit d4a891427c480d7eab4cc121c612f7aeca1dc2fc[m
+Author: Alfredo / Maplide / RussP <russplayadaqu666@gmail.com>
+Date:   Fri Aug 22 22:39:04 2025 -0500
+
+    Mejorando la interfaz clasico a  moderno
+
+[33mcommit fdbd74b431d0ec08cae0d05ed962dc5b61481a95[m
+Author: Alfredo / Maplide / RussP <russplayadaqu666@gmail.com>
+Date:   Fri Aug 22 22:36:24 2025 -0500
+
+    Base de pagina frontend
+
+[33mcommit f09d952d9d5ba3445f06b48ef2334c5799ea3242[m
+Author: Alfredo / Maplide / RussP <russplayadaqu666@gmail.com>
+Date:   Fri Aug 22 22:36:24 2025 -0500
+
+    Base de pagina frontend
+
+[33mcommit 2e5ff0e1c40d89b1f3166628c08301eadb138d6e[m
+Author: Alfredo / Maplide / RussP <russplayadaqu666@gmail.com>
+Date:   Fri Aug 22 20:49:54 2025 -0500
+
+    Primera conexión con Tailwind v4
+
+[33mcommit 440eebee567fdce87a6bae06bc20d04aca8f2cb4[m
+Author: Alfredo / Maplide / RussP <russplayadaqu666@gmail.com>
+Date:   Fri Aug 22 20:49:54 2025 -0500
+
+    Primera conexión con Tailwind v4
+
+[33mcommit 35c24328eb04d4710f28d2932fe6e174f4cd0b50[m
+Author: SEMANA4 <74093841@continental.edu.pe>
+Date:   Wed Aug 20 11:51:30 2025 -0500
+
+    Inserccion de .env en backend
+
+[33mcommit b74635f3be7d9d560efe03235492a9fd33092d8d[m
+Author: SEMANA4 <74093841@continental.edu.pe>
+Date:   Wed Aug 20 11:51:30 2025 -0500
+
+    Inserccion de .env en backend
+
+[33mcommit 7a3c4312c6eec8b2f38c798654cbd242c2893a25[m
+Author: SEMANA4 <74093841@continental.edu.pe>
+Date:   Wed Aug 20 10:48:16 2025 -0500
+
+    Dependecia de Huggingfaca para backend
+
+[33mcommit cfd24e847da339917995cd095587d46008b31dd4[m
+Author: SEMANA4 <74093841@continental.edu.pe>
+Date:   Wed Aug 20 10:48:16 2025 -0500
+
+    Dependecia de Huggingfaca para backend
+
+[33mcommit da71db5a8c2e3c48a9c57e2cc2e82655e0fb0753[m
+Merge: 0b1d7972 c5c8e573
+Author: Yorsh-dev <75707785@continental.edu.pe>
+Date:   Tue Aug 19 19:46:14 2025 -0500
+
+    Merge branch 'master' of https://github.com/Yorshgamer/tptutor
+    algo dice
+
+[33mcommit c2145808330da5007981e270346531902d21f7f7[m
+Merge: 0b1d7972 09c3e6f2
+Author: Yorsh-dev <75707785@continental.edu.pe>
+Date:   Tue Aug 19 19:46:14 2025 -0500
+
+    Merge branch 'master' of https://github.com/Yorshgamer/tptutor
+    algo dice
+
+[33mcommit 0b1d7972b5ed0fce1212f3178fa5db0090c8c36d[m
+Author: Yorsh-dev <75707785@continental.edu.pe>
+Date:   Tue Aug 19 19:45:52 2025 -0500
+
+    Script backend
+
+[33mcommit c5c8e57323eaf4ffa13275e1439cff945b630e5e[m
+Author: Maplide <russplayadaqu666@gmail.com>
+Date:   Tue Aug 19 19:21:06 2025 -0500
+
+    Creacion del README V1.md
+
+[33mcommit 09c3e6f25b728ff293b51068caa805f6bff51554[m
+Author: Maplide <russplayadaqu666@gmail.com>
+Date:   Tue Aug 19 19:21:06 2025 -0500
+
+    Creacion del README V1.md
+
+[33mcommit 3a3e5c56d6705dee7e775085124cbc4fa64d401f[m
+Author: Yorsh-dev <75707785@continental.edu.pe>
+Date:   Tue Aug 19 18:33:06 2025 -0500
+
+    Base de proyecto
