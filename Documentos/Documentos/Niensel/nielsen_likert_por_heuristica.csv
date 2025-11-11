@@ -1,0 +1,11 @@
+Heurística;count_1;prop_1;count_2;prop_2;count_3;prop_3;count_4;prop_4;count_5;prop_5;
+Ayuda y documentación;0;0;0;0;2;0.1429;6;0.4286;6;0.4286;
+Consistencia y estándares;0;0;1;0.0714;4;0.2857;5;0.3571;4;0.2857;
+Control y libertad del usuario;0;0;0;0;0;0;8;0.5714;6;0.4286;
+Correspondencia entre el sistema y el mundo real;0;0;1;0.0714;3;0.2143;7;0.5;3;0.2143;
+Diseño estético y minimalista;0;0;0;0;2;0.1429;6;0.4286;6;0.4286;
+Flexibilidad y eficiencia de uso;0;0;1;0.0714;3;0.2143;6;0.4286;4;0.2857;
+Prevención de errores;0;0;1;0.0714;2;0.1429;7;0.5;4;0.2857;
+Reconocer antes que recordar;0;0;0;0;3;0.2143;7;0.5;4;0.2857;
+Reconocer; diagnosticar y recuperarse de errores;0;0;3;0.2143;0;0;8;0.5714;3;0.2143
+Visibilidad del estado del sistema;0;0;1;0.0714;0;0;7;0.5;6;0.4286;
