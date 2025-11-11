@@ -24,5 +24,6 @@ dist-ssr
 *.sw?
 
 # tests
+backend/coverage/
 frontend/coverage/
 frontend.zip
