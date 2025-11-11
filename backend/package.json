@@ -1,36 +1,26 @@
 {
   "name": "backend",
   "version": "1.0.0",
-  "type": "module",
   "main": "index.js",
   "scripts": {
-    "test": "jest --coverage --runInBand",
+    "test": "echo \"Error: no test specified\" && exit 1",
     "start": "node index.js",
     "dev": "nodemon index.js"
   },
   "keywords": [],
   "author": "",
   "license": "ISC",
+  "description": "",
   "dependencies": {
     "@huggingface/inference": "^4.7.1",
     "axios": "^1.12.2",
-    "bcryptjs": "^3.0.3",
     "cors": "^2.8.5",
     "dotenv": "^17.2.1",
     "express": "^5.1.0",
     "mammoth": "^1.11.0",
-    "mongodb": "^6.20.0",
-    "mongoose": "^8.19.2",
     "multer": "^2.0.2",
     "pdf-parse": "^1.1.1",
     "pdf2json": "^3.1.4",
     "pdfjs-dist": "^5.4.149"
-  },
-  "devDependencies": {
-    "@babel/preset-env": "^7.28.3",
-    "babel-jest": "^30.2.0",
-    "jest": "^30.2.0",
-    "supertest": "^7.1.4"
-  },
-  "description": ""
+  }
 }
