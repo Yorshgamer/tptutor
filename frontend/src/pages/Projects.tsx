@@ -66,11 +66,8 @@ function getCurrentUser(): User | null {
 // -----------------------------
 // API mock (localStorage)
 // -----------------------------
-
-const LS_PROJECTS = "tptutor.projects";
 const LS_PROGRESS = "tptutor.progress"; // array<ProgressEntry>
-const LS_USERS = "tptutor.users"; // directorio básico de usuarios (solo para vista teacher)
-const USE_MOCK = true;
+const USE_MOCK = false;
 
 function readJSON<T>(key: string, fallback: T): T {
   try {
@@ -85,98 +82,188 @@ function writeJSON<T>(key: string, value: T) {
   localStorage.setItem(key, JSON.stringify(value));
 }
 
-function upsertCurrentUserDirectory() {
-  const me = getCurrentUser();
-  if (!me) return;
-  const all = readJSON<User[]>(LS_USERS, []);
-  const idx = all.findIndex((u) => u.id === me.id);
-  if (idx === -1) all.push(me); else all[idx] = me;
-  writeJSON(LS_USERS, all);
-}
+type TeacherStudent = {
+  id: string;
+  name: string;
+  email: string;
+  assigned: boolean;
+};
 
-const apiUsers = {
-  async listStudents() {
-    const all = readJSON<User[]>(LS_USERS, []);
-    await new Promise((r) => setTimeout(r, 40));
-    return all.filter((u) => u.role === "student");
+const apiTeacher = {
+  async listStudents(q?: string): Promise<TeacherStudent[]> {
+    const params = new URLSearchParams();
+    if (q) params.set("q", q);
+    const res = await fetch(`/api/teacher/students${params.toString() ? "?" + params.toString() : ""}`, {
+      headers: getAuthHeaders(), // puedes mover getAuthHeaders arriba a scope global
+    });
+    const payload = await res.json().catch(() => ({}));
+    const ok = payload?.ok ?? res.ok;
+    if (!ok) throw new Error(payload?.error || "Error al cargar estudiantes");
+    return payload.data as TeacherStudent[];
   },
-  async getById(id: string) {
-    const all = readJSON<User[]>(LS_USERS, []);
-    await new Promise((r) => setTimeout(r, 30));
-    return all.find((u) => u.id === id) || null;
+
+  async assignStudent(studentId: string) {
+    const res = await fetch(`/api/teacher/students/${studentId}`, {
+      method: "POST",
+      headers: getAuthHeaders(),
+    });
+    const payload = await res.json().catch(() => ({}));
+    const ok = payload?.ok ?? res.ok;
+    if (!ok) throw new Error(payload?.error || "Error al asignar estudiante");
+  },
+
+  async unassignStudent(studentId: string) {
+    const res = await fetch(`/api/teacher/students/${studentId}`, {
+      method: "DELETE",
+      headers: getAuthHeaders(),
+    });
+    const payload = await res.json().catch(() => ({}));
+    const ok = payload?.ok ?? res.ok;
+    if (!ok) throw new Error(payload?.error || "Error al quitar estudiante");
   },
 };
+
+
+const API_PROJECTS = "/api/projects";
+
+type BackendProject = {
+  _id: string;
+  ownerId: string;
+  name: string;
+  description?: string;
+  status: ProjectStatus;
+  tags: string[];
+  createdAt: string;
+  updatedAt: string;
+};
+
+function mapProject(p: BackendProject): Project {
+  return {
+    id: p._id,
+    ownerId: p.ownerId,
+    name: p.name,
+    description: p.description ?? "",
+    status: p.status,
+    tags: p.tags ?? [],
+    createdAt: p.createdAt,
+    updatedAt: p.updatedAt,
+  };
+}
+
+function getAuthHeaders() {
+  const token = localStorage.getItem("token");
+  const headers: Record<string, string> = {
+    "Content-Type": "application/json",
+  };
+  if (token) {
+    headers["Authorization"] = `Bearer ${token}`;
+  }
+  return headers;
+}
 
 const api = {
   async list(params?: { q?: string; status?: "all" | ProjectStatus; ownerId?: string }) {
     const me = getCurrentUser();
     if (!me) throw new Error("NO_USER");
-    let items = readJSON<Project[]>(LS_PROJECTS, []);
 
-    // por defecto, si no especificas ownerId, filtra por el usuario actual
-    const owner = params?.ownerId ?? me.id;
-    items = items.filter((p) => p.ownerId === owner);
+    const search = new URLSearchParams();
 
-    if (params?.q) {
-      const q = params.q.toLowerCase();
-      items = items.filter(
-        (p) =>
-          p.name.toLowerCase().includes(q) ||
-          p.description?.toLowerCase().includes(q) ||
-          p.tags.some((t) => t.toLowerCase().includes(q))
-      );
-    }
+    if (params?.q) search.set("q", params.q);
     if (params?.status && params.status !== "all") {
-      items = items.filter((p) => p.status === params.status);
+      search.set("status", params.status);
     }
-    await new Promise((r) => setTimeout(r, 100));
-    return items.sort((a, b) => b.updatedAt.localeCompare(a.updatedAt));
+
+    // 🚨 caso especial: Teacher/Admin pidiendo proyectos de OTRO alumno
+    if (params?.ownerId && params.ownerId !== me.id) {
+      search.set("all", "1"); // backend: si role=teacher/admin y all=1, trae todos
+    }
+
+    const url = `${API_PROJECTS}${search.toString() ? "?" + search.toString() : ""}`;
+    const res = await fetch(url, {
+      headers: getAuthHeaders(),
+    });
+
+    const payload = await res.json().catch(() => ({}));
+    const ok = payload?.ok ?? res.ok;
+
+    if (!ok) {
+      throw new Error(payload?.error || "Error al obtener proyectos");
+    }
+
+    let items: Project[] = (payload.data as BackendProject[]).map(mapProject);
+
+    // si teacher/admin pidió ownerId específico, filtramos aquí
+    if (params?.ownerId && params.ownerId !== me.id) {
+      items = items.filter((p) => p.ownerId === params.ownerId);
+    }
+
+    return items;
   },
+
   async create(input: Omit<Project, "id" | "createdAt" | "updatedAt" | "ownerId">) {
-    const me = getCurrentUser();
-    if (!me) throw new Error("NO_USER");
-    const now = new Date().toISOString();
-    const item: Project = { ...input, id: uid(), ownerId: me.id, createdAt: now, updatedAt: now };
-    const items = readJSON<Project[]>(LS_PROJECTS, []);
-    items.push(item);
-    writeJSON(LS_PROJECTS, items);
-    await new Promise((r) => setTimeout(r, 80));
-    return item;
+    const res = await fetch(API_PROJECTS, {
+      method: "POST",
+      headers: getAuthHeaders(),
+      body: JSON.stringify({
+        name: input.name,
+        description: input.description ?? "",
+        status: input.status,
+        tags: input.tags,
+      }),
+    });
+
+    const payload = await res.json().catch(() => ({}));
+    const ok = payload?.ok ?? res.ok;
+    if (!ok) {
+      throw new Error(payload?.error || "Error al crear proyecto");
+    }
+
+    return mapProject(payload.data as BackendProject);
   },
+
   async update(id: string, patch: Partial<Omit<Project, "id" | "createdAt" | "ownerId">>) {
-    const me = getCurrentUser();
-    if (!me) throw new Error("NO_USER");
-    const items = readJSON<Project[]>(LS_PROJECTS, []);
-    const idx = items.findIndex((p) => p.id === id && p.ownerId === me.id);
-    if (idx === -1) throw new Error("NOT_FOUND_OR_FORBIDDEN");
-    const updated: Project = { ...items[idx], ...patch, updatedAt: new Date().toISOString() };
-    items[idx] = updated;
-    writeJSON(LS_PROJECTS, items);
-    await new Promise((r) => setTimeout(r, 80));
-    return updated;
+    const res = await fetch(`${API_PROJECTS}/${id}`, {
+      method: "PATCH",
+      headers: getAuthHeaders(),
+      body: JSON.stringify(patch),
+    });
+
+    const payload = await res.json().catch(() => ({}));
+    const ok = payload?.ok ?? res.ok;
+    if (!ok) {
+      throw new Error(payload?.error || "Error al actualizar proyecto");
+    }
+
+    return mapProject(payload.data as BackendProject);
   },
+
   async remove(id: string) {
-    const me = getCurrentUser();
-    if (!me) throw new Error("NO_USER");
-    const items = readJSON<Project[]>(LS_PROJECTS, []);
-    const exists = items.find((p) => p.id === id && p.ownerId === me.id);
-    if (!exists) throw new Error("NOT_FOUND_OR_FORBIDDEN");
-    writeJSON(LS_PROJECTS, items.filter((p) => !(p.id === id && p.ownerId === me.id)));
-    // limpiar progreso asociado
-    const progress = readJSON<ProgressEntry[]>(LS_PROGRESS, []);
-    writeJSON(LS_PROGRESS, progress.filter((x) => x.projectId !== id));
-    await new Promise((r) => setTimeout(r, 60));
+    const res = await fetch(`${API_PROJECTS}/${id}`, {
+      method: "DELETE",
+      headers: getAuthHeaders(),
+    });
+
+    const payload = await res.json().catch(() => ({}));
+    const ok = payload?.ok ?? res.ok;
+    if (!ok) {
+      throw new Error(payload?.error || "Error al eliminar proyecto");
+    }
+
     return { ok: true } as const;
   },
-  async get(id: string, ownerId?: string) {
-    const me = getCurrentUser();
-    if (!me) throw new Error("NO_USER");
-    const owner = ownerId ?? me.id;
-    const items = readJSON<Project[]>(LS_PROJECTS, []);
-    const found = items.find((p) => p.id === id && p.ownerId === owner);
-    await new Promise((r) => setTimeout(r, 60));
-    if (!found) throw new Error("NOT_FOUND_OR_FORBIDDEN");
-    return found;
+
+  async get(id: string, _ownerId?: string) {
+    const res = await fetch(`${API_PROJECTS}/${id}`, {
+      headers: getAuthHeaders(),
+    });
+
+    const payload = await res.json().catch(() => ({}));
+    const ok = payload?.ok ?? res.ok;
+    if (!ok) {
+      throw new Error(payload?.error || "Error al obtener proyecto");
+    }
+
+    return mapProject(payload.data as BackendProject);
   },
 };
 
@@ -271,14 +358,12 @@ function Modal({ open, onClose, children, title }: { open: boolean; onClose: () 
 // -----------------------------
 
 export default function Projects() {
-  // Garantiza que el usuario actual exista en el directorio (para vista Teacher)
-  useEffect(() => { upsertCurrentUserDirectory(); }, []);
-
   const me = getCurrentUser();
   const isTeacher = me?.role === "teacher" || me?.role === "admin";
 
   return isTeacher ? <TeacherView /> : <StudentView />;
 }
+
 
 // -----------------------------
 // Vista STUDENT — CRUD + progreso propio
@@ -395,42 +480,71 @@ function Row({ p, onView, onEdit, onDelete, onProgress }: { p: Project; onView: 
 // -----------------------------
 
 function TeacherView() {
-  const [students, setStudents] = useState<User[]>([]);
+  const [students, setStudents] = useState<TeacherStudent[]>([]);
   const [loading, setLoading] = useState(true);
   const [q, setQ] = useState("");
   const [statusFilter, setStatusFilter] = useState<"all" | ProjectStatus>("all");
-
   const [modal, setModal] = useState<{ open: boolean; studentId?: string }>({ open: false });
+
+  async function loadStudents() {
+    setLoading(true);
+    try {
+      const data = await apiTeacher.listStudents(q);
+      setStudents(data);
+    } finally {
+      setLoading(false);
+    }
+  }
 
   useEffect(() => {
     let alive = true;
-    upsertCurrentUserDirectory();
     setLoading(true);
-    apiUsers.listStudents().then((data) => alive && setStudents(data)).finally(() => alive && setLoading(false));
-    return () => { alive = false; };
-  }, []);
+    apiTeacher
+      .listStudents(q)
+      .then((data) => {
+        if (!alive) return;
+        setStudents(data);
+      })
+      .finally(() => alive && setLoading(false));
+    return () => {
+      alive = false;
+    };
+  }, [q]);
 
-  const filtered = useMemo(() => {
-    const ql = q.toLowerCase();
-    return students.filter((s) => s.name.toLowerCase().includes(ql) || s.email.toLowerCase().includes(ql));
-  }, [students, q]);
+  const filtered = students; // ya filtramos por q en backend; si quieres puedes filtrar otra vez aquí
 
   return (
     <div className="space-y-6">
-      <Card title="Estudiantes" subtitle="Revisa el estado de sus proyectos">
+      <Card
+        title="Estudiantes"
+        subtitle="Selecciona a qué alumnos vas a tutorizar y revisa sus proyectos"
+      >
         <div className="flex flex-wrap items-center gap-3">
           <div className="relative">
-            <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-slate-400">🔎</span>
-            <input className="pl-9 rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-600" placeholder="Buscar estudiante…" value={q} onChange={(e) => setQ(e.target.value)} />
+            <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-slate-400">
+              🔎
+            </span>
+            <input
+              className="pl-9 rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-600"
+              placeholder="Buscar estudiante…"
+              value={q}
+              onChange={(e) => setQ(e.target.value)}
+            />
           </div>
-          <select className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-600" value={statusFilter} onChange={(e) => setStatusFilter(e.target.value as any)}>
+
+          <select
+            className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-600"
+            value={statusFilter}
+            onChange={(e) => setStatusFilter(e.target.value as any)}
+          >
             <option value="all">Todos los estados</option>
             <option value="in_progress">En curso</option>
             <option value="done">Completado</option>
             <option value="pending">Pendiente</option>
           </select>
+
           <div className="ml-auto flex items-center gap-2">
-            {USE_MOCK && <span className="rounded-lg bg-slate-100 px-2 py-1 text-sm text-slate-600">mock/localStorage</span>}
+            {/* Aquí podrías poner algún indicador o botón de refrescar si quieres */}
           </div>
         </div>
       </Card>
@@ -447,49 +561,116 @@ function TeacherView() {
                 <th className="py-2 pr-4">Proyectos</th>
                 <th className="py-2 pr-4">Estados</th>
                 <th className="py-2 pr-4">Progreso medio</th>
+                <th className="py-2 pr-4">Tutoría</th>
                 <th className="py-2">Acciones</th>
               </tr>
             </thead>
             <tbody className="align-top text-slate-800">
               {filtered.map((s) => (
-                <TeacherRow key={s.id} student={s} statusFilter={statusFilter} onOpen={() => setModal({ open: true, studentId: s.id })} />
+                <TeacherRow
+                  key={s.id}
+                  student={s}
+                  statusFilter={statusFilter}
+                  onOpen={() =>
+                    setModal({ open: true, studentId: s.id })
+                  }
+                  onToggleAssign={async () => {
+                    try {
+                      if (s.assigned) {
+                        await apiTeacher.unassignStudent(s.id);
+                      } else {
+                        await apiTeacher.assignStudent(s.id);
+                      }
+                      await loadStudents();
+                    } catch (err) {
+                      console.error(err);
+                      alert("No se pudo actualizar la tutoría");
+                    }
+                  }}
+                />
               ))}
+
               {!loading && filtered.length === 0 && (
-                <tr><td colSpan={5} className="py-6 text-center text-slate-500">Sin resultados</td></tr>
+                <tr>
+                  <td
+                    colSpan={6}
+                    className="py-6 text-center text-slate-500"
+                  >
+                    Sin resultados
+                  </td>
+                </tr>
               )}
             </tbody>
           </table>
         </div>
       </Card>
 
-      <TeacherStudentProjectsModal ctx={modal} onClose={() => setModal({ open: false })} />
+      <TeacherStudentProjectsModal
+        ctx={modal}
+        onClose={() => setModal({ open: false })}
+      />
     </div>
   );
 }
 
-function TeacherRow({ student, statusFilter, onOpen }: { student: User; statusFilter: "all" | ProjectStatus; onOpen: () => void }) {
-  const [stats, setStats] = useState<{ total: number; byStatus: Record<ProjectStatus, number>; avgProgress: number }>({ total: 0, byStatus: { pending: 0, in_progress: 0, done: 0 }, avgProgress: 0 });
+
+function TeacherRow({
+  student,
+  statusFilter,
+  onOpen,
+  onToggleAssign,
+}: {
+  student: TeacherStudent;
+  statusFilter: "all" | ProjectStatus;
+  onOpen: () => void;
+  onToggleAssign: () => void;
+}) {
+  const [stats, setStats] = useState<{
+    total: number;
+    byStatus: Record<ProjectStatus, number>;
+    avgProgress: number;
+  }>({
+    total: 0,
+    byStatus: { pending: 0, in_progress: 0, done: 0 },
+    avgProgress: 0,
+  });
 
   useEffect(() => {
     let alive = true;
     (async () => {
       const projects = await api.list({ ownerId: student.id });
-      const byStatus = { pending: 0, in_progress: 0, done: 0 } as Record<ProjectStatus, number>;
-      projects.forEach((p) => { byStatus[p.status]++; });
+      const byStatus = {
+        pending: 0,
+        in_progress: 0,
+        done: 0,
+      } as Record<ProjectStatus, number>;
+      projects.forEach((p) => {
+        byStatus[p.status]++;
+      });
 
-      // progreso medio del propio estudiante en sus proyectos
+      // progreso medio (por ahora sigue usando apiProgress local)
       const progress = await apiProgress.listByUser(student.id);
       const ownProjectIds = new Set(projects.map((p) => p.id));
-      const ownEntries = progress.filter((e) => ownProjectIds.has(e.projectId));
-      const avg = ownEntries.length ? Math.round(ownEntries.reduce((a, b) => a + b.percent, 0) / ownEntries.length) : 0;
+      const ownEntries = progress.filter((e) =>
+        ownProjectIds.has(e.projectId)
+      );
+      const avg = ownEntries.length
+        ? Math.round(
+            ownEntries.reduce((a, b) => a + b.percent, 0) /
+              ownEntries.length
+          )
+        : 0;
 
       if (!alive) return;
       setStats({ total: projects.length, byStatus, avgProgress: avg });
     })();
-    return () => { alive = false; };
+    return () => {
+      alive = false;
+    };
   }, [student.id]);
 
-  const visibleTotal = statusFilter === "all" ? stats.total : stats.byStatus[statusFilter];
+  const visibleTotal =
+    statusFilter === "all" ? stats.total : stats.byStatus[statusFilter];
 
   return (
     <tr className="border-t">
@@ -499,51 +680,121 @@ function TeacherRow({ student, statusFilter, onOpen }: { student: User; statusFi
       </td>
       <td className="py-3 pr-4">{visibleTotal}</td>
       <td className="py-3 pr-4">
-        <div className="flex flex-wrap gap-2 items-center">
-          <span className="text-xs">Pend:</span><span className="text-xs font-semibold">{stats.byStatus.pending}</span>
-          <span className="text-xs">Curso:</span><span className="text-xs font-semibold">{stats.byStatus.in_progress}</span>
-          <span className="text-xs">Comp:</span><span className="text-xs font-semibold">{stats.byStatus.done}</span>
+        <div className="flex flex-wrap gap-2 items-center text-xs">
+          <span>Pend:</span>
+          <span className="font-semibold">{stats.byStatus.pending}</span>
+          <span>Curso:</span>
+          <span className="font-semibold">{stats.byStatus.in_progress}</span>
+          <span>Comp:</span>
+          <span className="font-semibold">{stats.byStatus.done}</span>
         </div>
       </td>
-      <td className="py-3 pr-4"><div className="flex items-center gap-3"><ProgressBar value={stats.avgProgress} /><span className="w-10 text-right text-xs text-slate-500">{stats.avgProgress}%</span></div></td>
-      <td className="py-3"><Button variant="subtle" onClick={onOpen}>Ver proyectos</Button></td>
+      <td className="py-3 pr-4">
+        <div className="flex items-center gap-3">
+          <ProgressBar value={stats.avgProgress} />
+          <span className="w-10 text-right text-xs text-slate-500">
+            {stats.avgProgress}%
+          </span>
+        </div>
+      </td>
+      <td className="py-3 pr-4">
+        <span
+          className={`inline-flex rounded-lg px-2 py-1 text-xs ${
+            student.assigned
+              ? "bg-green-100 text-green-700"
+              : "bg-slate-100 text-slate-600"
+          }`}
+        >
+          {student.assigned ? "Asignado" : "No asignado"}
+        </span>
+      </td>
+      <td className="py-3">
+        <div className="flex gap-2">
+          <Button
+            variant="subtle"
+            onClick={onOpen}
+            disabled={!student.assigned}
+          >
+            Ver proyectos
+          </Button>
+          <Button
+            variant={student.assigned ? "danger" : "secondary"}
+            onClick={onToggleAssign}
+          >
+            {student.assigned ? "Dejar de tutorizar" : "Tutorizar"}
+          </Button>
+        </div>
+      </td>
     </tr>
   );
 }
 
-function TeacherStudentProjectsModal({ ctx, onClose }: { ctx: { open: boolean; studentId?: string }; onClose: () => void }) {
-  const [student, setStudent] = useState<User | null>(null);
+function TeacherStudentProjectsModal({
+  ctx,
+  onClose,
+}: {
+  ctx: { open: boolean; studentId?: string };
+  onClose: () => void;
+}) {
   const [items, setItems] = useState<Project[]>([]);
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
     let alive = true;
     if (!ctx.open || !ctx.studentId) return;
+
     setLoading(true);
-    Promise.all([apiUsers.getById(ctx.studentId), api.list({ ownerId: ctx.studentId })])
-      .then(([u, ps]) => { if (!alive) return; setStudent(u); setItems(ps); })
+    api
+      .list({ ownerId: ctx.studentId })
+      .then((ps) => {
+        if (!alive) return;
+        setItems(ps);
+      })
       .finally(() => alive && setLoading(false));
-    return () => { alive = false; };
+
+    return () => {
+      alive = false;
+    };
   }, [ctx.open, ctx.studentId]);
 
   return (
-    <Modal open={!!ctx.open} onClose={onClose} title={student ? `Proyectos de ${student.name}` : "Proyectos del estudiante"}>
+    <Modal
+      open={!!ctx.open}
+      onClose={onClose}
+      title="Proyectos del estudiante"
+    >
       {loading ? (
         <p className="text-sm text-slate-500">Cargando…</p>
       ) : (
         <div className="space-y-4">
-          {items.length === 0 && <p className="text-sm text-slate-500">El estudiante no tiene proyectos.</p>}
+          {items.length === 0 && (
+            <p className="text-sm text-slate-500">
+              El estudiante no tiene proyectos.
+            </p>
+          )}
+
           {items.map((p) => (
             <div key={p.id} className="rounded-xl border p-3">
               <div className="mb-2 flex items-center gap-2">
                 <div className="font-semibold">{p.name}</div>
                 <StatusChip status={p.status} />
               </div>
-              {p.description && <p className="text-slate-700 text-sm">{p.description}</p>}
-              <div className="mt-2 flex flex-wrap gap-2">{p.tags.map((t, i) => (<Tag key={i}>{t}</Tag>))}</div>
+              {p.description && (
+                <p className="text-slate-700 text-sm">{p.description}</p>
+              )}
+              <div className="mt-2 flex flex-wrap gap-2">
+                {p.tags.map((t, i) => (
+                  <Tag key={i}>{t}</Tag>
+                ))}
+              </div>
             </div>
           ))}
-          <div className="text-right"><Button variant="subtle" onClick={onClose}>Cerrar</Button></div>
+
+          <div className="text-right">
+            <Button variant="subtle" onClick={onClose}>
+              Cerrar
+            </Button>
+          </div>
         </div>
       )}
     </Modal>
