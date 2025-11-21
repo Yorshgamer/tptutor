@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useState } from "react";
 import Card from "../components/Card";
 import Tag from "../components/Tag";
 import Button from "../components/Button";
+import Tutor from "../pages/Tutor"; // ajusta la ruta según dónde tengas el componente
 
 /**
  * Projects.tsx — Vista dual por rol
@@ -28,6 +29,9 @@ type Project = {
   tags: string[];
   createdAt: string;
   updatedAt: string;
+  totalActivities?: number;
+  completedActivities?: number;
+  progressPercent?: number; // 0-100 viene del backend
 };
 
 type User = {
@@ -35,14 +39,6 @@ type User = {
   name: string;
   email: string;
   role: "student" | "teacher" | "admin";
-};
-
-type ProgressEntry = {
-  projectId: string;
-  userId: string;
-  percent: number; // 0-100
-  note?: string;
-  updatedAt: string;
 };
 
 const STATUS_LABEL: Record<ProjectStatus, string> = {
@@ -66,25 +62,6 @@ function getCurrentUser(): User | null {
   } catch {
     return null;
   }
-}
-
-// -----------------------------
-// API mock (localStorage)
-// -----------------------------
-const LS_PROGRESS = "tptutor.progress"; // array<ProgressEntry>
-const USE_MOCK = false;
-
-function readJSON<T>(key: string, fallback: T): T {
-  try {
-    const raw = localStorage.getItem(key);
-    return raw ? (JSON.parse(raw) as T) : fallback;
-  } catch {
-    return fallback;
-  }
-}
-
-function writeJSON<T>(key: string, value: T) {
-  localStorage.setItem(key, JSON.stringify(value));
 }
 
 type TeacherStudent = {
@@ -144,6 +121,9 @@ type BackendProject = {
   tags: string[];
   createdAt: string;
   updatedAt: string;
+  totalActivities?: number;
+  completedActivities?: number;
+  progressPercent?: number;
 };
 
 function mapProject(p: BackendProject): Project {
@@ -156,6 +136,9 @@ function mapProject(p: BackendProject): Project {
     tags: p.tags ?? [],
     createdAt: p.createdAt,
     updatedAt: p.updatedAt,
+    totalActivities: p.totalActivities ?? 0,
+    completedActivities: p.completedActivities ?? 0,
+    progressPercent: p.progressPercent ?? 0,
   };
 }
 
@@ -287,51 +270,6 @@ const api = {
   },
 };
 
-const apiProgress = {
-  async upsertMine(
-    projectId: string,
-    payload: { percent: number; note?: string }
-  ) {
-    const user = getCurrentUser();
-    if (!user) throw new Error("NO_USER");
-    const all = readJSON<ProgressEntry[]>(LS_PROGRESS, []);
-    const idx = all.findIndex(
-      (x) => x.projectId === projectId && x.userId === user.id
-    );
-    const entry: ProgressEntry = {
-      projectId,
-      userId: user.id,
-      percent: Math.max(0, Math.min(100, Math.round(payload.percent))),
-      note: payload.note?.trim() || "",
-      updatedAt: new Date().toISOString(),
-    };
-    if (idx === -1) all.push(entry);
-    else all[idx] = entry;
-    writeJSON(LS_PROGRESS, all);
-    await new Promise((r) => setTimeout(r, 60));
-    return entry;
-  },
-  async getMine(projectId: string) {
-    const user = getCurrentUser();
-    if (!user) throw new Error("NO_USER");
-    const all = readJSON<ProgressEntry[]>(LS_PROGRESS, []);
-    await new Promise((r) => setTimeout(r, 40));
-    return (
-      all.find((x) => x.projectId === projectId && x.userId === user.id) || null
-    );
-  },
-  async listByProject(projectId: string) {
-    const all = readJSON<ProgressEntry[]>(LS_PROGRESS, []);
-    await new Promise((r) => setTimeout(r, 40));
-    return all.filter((x) => x.projectId === projectId);
-  },
-  async listByUser(userId: string) {
-    const all = readJSON<ProgressEntry[]>(LS_PROGRESS, []);
-    await new Promise((r) => setTimeout(r, 40));
-    return all.filter((x) => x.userId === userId);
-  },
-};
-
 // -----------------------------
 // Componentes auxiliares
 // -----------------------------
@@ -451,9 +389,10 @@ function StudentView() {
   const [showView, setShowView] = useState<{ open: boolean; id?: string }>({
     open: false,
   });
-  const [showProgress, setShowProgress] = useState<{
+
+  const [showTutor, setShowTutor] = useState<{
     open: boolean;
-    id?: string;
+    project?: Project;
   }>({ open: false });
 
   useEffect(() => {
@@ -468,25 +407,24 @@ function StudentView() {
     };
   }, [q, status]);
 
-    const globalProgress = useMemo(() => {
-    const byStatus: Record<ProjectStatus, number> = {
-      pending: 0,
-      in_progress: 0,
-      done: 0,
-    };
+  const reload = async () => {
+    try {
+      const data = await api.list({ q, status });
+      setItems(data);
+    } catch (err) {
+      console.error("Error recargando proyectos:", err);
+    }
+  };
 
-    items.forEach((p) => {
-      byStatus[p.status]++;
-    });
+  const globalProgress = useMemo(() => {
+    if (!items.length) return 0;
 
-    const workCount = byStatus.in_progress + byStatus.done;
-    const doneCount = byStatus.done;
+    // Sumar porcentajes de todos los proyectos del alumno
+    const sum = items.reduce((acc, p) => acc + (p.progressPercent ?? 0), 0);
 
-    if (workCount === 0) return 0;
-
-    return Math.round((doneCount / workCount) * 100);
+    // Promedio entre todos los proyectos
+    return Math.round(sum / items.length);
   }, [items]);
-
 
   async function handleCreate(form: FormState) {
     const created = await api.create({
@@ -514,50 +452,49 @@ function StudentView() {
 
   return (
     <div className="space-y-6">
-          <Card title="Mis Proyectos" subtitle="Filtra y crea proyectos">
-      <div className="flex flex-wrap items-center gap-3">
-        <div className="relative">
-          <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-slate-400">
-            🔎
+      <Card title="Mis Proyectos" subtitle="Filtra y crea proyectos">
+        <div className="flex flex-wrap items-center gap-3">
+          <div className="relative">
+            <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-slate-400">
+              🔎
+            </span>
+            <input
+              className="pl-9 rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-600"
+              placeholder="Buscar…"
+              value={q}
+              onChange={(e) => setQ(e.target.value)}
+            />
+          </div>
+
+          <select
+            className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-600"
+            value={status}
+            onChange={(e) => setStatus(e.target.value as any)}
+          >
+            <option value="all">Todos</option>
+            <option value="in_progress">En curso</option>
+            <option value="done">Completado</option>
+            <option value="pending">Pendiente</option>
+          </select>
+
+          <div className="ml-auto flex items-center gap-2">
+            <Button variant="secondary" onClick={() => setShowCreate(true)}>
+              ➕ Nuevo proyecto
+            </Button>
+          </div>
+        </div>
+
+        {/* 👇 NUEVO BLOQUE: progreso global del alumno */}
+        <div className="mt-4 flex items-center gap-3">
+          <span className="text-sm font-medium text-slate-700">
+            Mi progreso global:
           </span>
-          <input
-            className="pl-9 rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-600"
-            placeholder="Buscar…"
-            value={q}
-            onChange={(e) => setQ(e.target.value)}
-          />
+          <ProgressBar value={globalProgress} />
+          <span className="text-xs text-slate-500 w-10 text-right">
+            {globalProgress}%
+          </span>
         </div>
-
-        <select
-          className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-600"
-          value={status}
-          onChange={(e) => setStatus(e.target.value as any)}
-        >
-          <option value="all">Todos</option>
-          <option value="in_progress">En curso</option>
-          <option value="done">Completado</option>
-          <option value="pending">Pendiente</option>
-        </select>
-
-        <div className="ml-auto flex items-center gap-2">
-          <Button variant="secondary" onClick={() => setShowCreate(true)}>
-            ➕ Nuevo proyecto
-          </Button>
-        </div>
-      </div>
-
-      {/* 👇 NUEVO BLOQUE: progreso global del alumno */}
-      <div className="mt-4 flex items-center gap-3">
-        <span className="text-sm font-medium text-slate-700">
-          Mi progreso global:
-        </span>
-        <ProgressBar value={globalProgress} />
-        <span className="text-xs text-slate-500 w-10 text-right">
-          {globalProgress}%
-        </span>
-      </div>
-    </Card>
-
+      </Card>
 
       <Card>
         <div className="flex items-center justify-between pb-2 text-sm text-slate-500">
@@ -582,7 +519,7 @@ function StudentView() {
                   onView={() => setShowView({ open: true, id: p.id })}
                   onEdit={() => setShowEdit({ open: true, id: p.id })}
                   onDelete={() => handleDelete(p.id)}
-                  onProgress={() => setShowProgress({ open: true, id: p.id })}
+                  onOpenTutor={() => setShowTutor({ open: true, project: p })}
                 />
               ))}
               {!loading && items.length === 0 && (
@@ -606,7 +543,19 @@ function StudentView() {
           setShowCreate(false);
         }}
       />
+      <TutorModal
+        ctx={showTutor}
+        onClose={() => setShowTutor({ open: false })}
+        onCompleted={async () => {
+          // Solo recargamos los proyectos para actualizar el progreso
+          await reload();
+          // 👇 Ya NO cerramos el modal aquí
+          // setShowTutor({ open: false });
+        }}
+      />
+
       <ViewModal ctx={showView} onClose={() => setShowView({ open: false })} />
+
       <EditModal
         ctx={showEdit}
         onClose={() => setShowEdit({ open: false })}
@@ -614,10 +563,6 @@ function StudentView() {
           await handleUpdate(id, data);
           setShowEdit({ open: false });
         }}
-      />
-      <ProgressModal
-        ctx={showProgress}
-        onClose={() => setShowProgress({ open: false })}
       />
     </div>
   );
@@ -628,24 +573,17 @@ function Row({
   onView,
   onEdit,
   onDelete,
-  onProgress,
+  onOpenTutor,
 }: {
   p: Project;
   onView: () => void;
   onEdit: () => void;
   onDelete: () => void;
-  onProgress: () => void;
+  onOpenTutor: () => void;
 }) {
-  const [mine, setMine] = useState<ProgressEntry | null>(null);
-  useEffect(() => {
-    let alive = true;
-    apiProgress.getMine(p.id).then((x) => alive && setMine(x));
-    return () => {
-      alive = false;
-    };
-  }, [p.id]);
   return (
     <tr className="border-t">
+      {/* Columna 1: Proyecto */}
       <td className="py-3 pr-4 font-medium">
         <div className="font-semibold">{p.name}</div>
         {p.description && (
@@ -654,9 +592,13 @@ function Row({
           </div>
         )}
       </td>
+
+      {/* Columna 2: Estado */}
       <td className="py-3 pr-4">
         <StatusChip status={p.status} />
       </td>
+
+      {/* Columna 3: Tags */}
       <td className="py-3 pr-4">
         <div className="flex flex-wrap gap-2">
           {p.tags?.map((t, i) => (
@@ -664,14 +606,18 @@ function Row({
           ))}
         </div>
       </td>
+
+      {/* Columna 4: Mi progreso (ahora usando backend) */}
       <td className="py-3 pr-4">
         <div className="flex items-center gap-3">
-          <ProgressBar value={mine?.percent ?? 0} />
+          <ProgressBar value={p.progressPercent ?? 0} />
           <span className="w-10 text-right text-xs text-slate-500">
-            {mine?.percent ?? 0}%
+            {p.progressPercent ?? 0}%
           </span>
         </div>
       </td>
+
+      {/* Columna 5: Acciones */}
       <td className="py-3">
         <div className="flex gap-2">
           <Button variant="ghost" onClick={onView}>
@@ -680,8 +626,8 @@ function Row({
           <Button variant="subtle" onClick={onEdit}>
             Editar
           </Button>
-          <Button variant="subtle" onClick={onProgress}>
-            Progreso
+          <Button variant="secondary" onClick={onOpenTutor}>
+            Tutor
           </Button>
           <Button variant="danger" onClick={onDelete}>
             Eliminar
@@ -1182,6 +1128,89 @@ function ViewModal({
   );
 }
 
+type TutorCtx = { open: boolean; project?: Project };
+
+function TutorModal({
+  ctx,
+  onClose,
+  onCompleted,
+}: {
+  ctx: TutorCtx;
+  onClose: () => void;
+  onCompleted: () => void;
+}) {
+  // Si no hay proyecto seleccionado, no mostramos nada dentro del modal
+  if (!ctx.project) {
+    return (
+      <Modal open={ctx.open} onClose={onClose} title="Tutor de Lectura">
+        <p className="text-sm text-slate-500">
+          Selecciona un proyecto para usar el tutor de lectura.
+        </p>
+      </Modal>
+    );
+  }
+
+  const { project } = ctx;
+  const activityId = `${project.id}-lectura-1`;
+
+  const [activityReady, setActivityReady] = useState(false);
+  const [ensuring, setEnsuring] = useState(false);
+
+  useEffect(() => {
+    let cancelled = false;
+    if (!ctx.open) return;
+
+    (async () => {
+      setEnsuring(true);
+      try {
+        await fetch("/api/reading-activities", {
+          method: "POST",
+          headers: getAuthHeaders(),
+          body: JSON.stringify({
+            projectId: project.id,
+            activityId,
+            title: "Lectura crítica 1",
+          }),
+        }).then((r) => r.json().catch(() => ({})));
+
+        if (!cancelled) setActivityReady(true);
+      } catch (err) {
+        console.error("No se pudo asegurar la actividad de lectura:", err);
+        if (!cancelled) setActivityReady(true); // dejamos pasar igual para no bloquear la UI
+      } finally {
+        if (!cancelled) setEnsuring(false);
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+      setActivityReady(false);
+    };
+  }, [ctx.open, project.id, activityId]);
+
+  return (
+    <Modal
+      open={ctx.open}
+      onClose={onClose}
+      title={`Tutor de Lectura — ${project.name}`}
+    >
+      <div className="max-h-[80vh] overflow-y-auto">
+        {!activityReady ? (
+          <p className="text-sm text-slate-500">
+            {ensuring ? "Preparando actividad de lectura…" : "Cargando…"}
+          </p>
+        ) : (
+          <Tutor
+            projectId={project.id}
+            activityId={activityId}
+            onCompleted={onCompleted} // solo recarga proyectos, NO cierra modal
+          />
+        )}
+      </div>
+    </Modal>
+  );
+}
+
 function EditModal({
   ctx,
   onClose,
@@ -1281,97 +1310,6 @@ function EditModal({
                 }
               }}
               disabled={!canSubmit || busy}
-            >
-              {busy ? "Guardando…" : "Guardar"}
-            </Button>
-          </div>
-        </div>
-      )}
-    </Modal>
-  );
-}
-
-// -----------------------------
-// Progreso — modal (Student)
-// -----------------------------
-
-function ProgressModal({
-  ctx,
-  onClose,
-}: {
-  ctx: { open: boolean; id?: string };
-  onClose: () => void;
-}) {
-  const [percent, setPercent] = useState<number>(0);
-  const [note, setNote] = useState("");
-  const [loading, setLoading] = useState(false);
-  const [busy, setBusy] = useState(false);
-
-  useEffect(() => {
-    let alive = true;
-    if (!ctx.open || !ctx.id) return;
-    setLoading(true);
-    apiProgress
-      .getMine(ctx.id)
-      .then((x) => {
-        if (!alive) return;
-        setPercent(x?.percent ?? 0);
-        setNote(x?.note ?? "");
-      })
-      .finally(() => alive && setLoading(false));
-    return () => {
-      alive = false;
-    };
-  }, [ctx.open, ctx.id]);
-
-  return (
-    <Modal open={!!ctx.open} onClose={onClose} title="Mi progreso">
-      {loading ? (
-        <p className="text-sm text-slate-500">Cargando…</p>
-      ) : (
-        <div className="space-y-4">
-          <div>
-            <label className="mb-1 block text-sm font-medium">Porcentaje</label>
-            <input
-              type="number"
-              min={0}
-              max={100}
-              value={percent}
-              onChange={(e) => setPercent(Number(e.target.value))}
-              className="w-28 rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-600"
-            />
-          </div>
-          <div>
-            <label className="mb-1 block text-sm font-medium">Nota</label>
-            <textarea
-              value={note}
-              onChange={(e) => setNote(e.target.value)}
-              rows={3}
-              className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-600"
-            />
-          </div>
-          <div className="flex items-center justify-between text-xs text-slate-500">
-            <span>0%</span>
-            <div className="grow px-3">
-              <ProgressBar value={percent} />
-            </div>
-            <span>100%</span>
-          </div>
-          <div className="flex justify-end gap-2 pt-2">
-            <Button variant="ghost" onClick={onClose} disabled={busy}>
-              Cancelar
-            </Button>
-            <Button
-              onClick={async () => {
-                if (!ctx.id) return;
-                setBusy(true);
-                try {
-                  await apiProgress.upsertMine(ctx.id, { percent, note });
-                  onClose();
-                } finally {
-                  setBusy(false);
-                }
-              }}
             >
               {busy ? "Guardando…" : "Guardar"}
             </Button>

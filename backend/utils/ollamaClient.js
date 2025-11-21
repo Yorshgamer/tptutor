@@ -3,15 +3,21 @@ export async function ollamaRequest(prompt) {
   const response = await fetch("http://localhost:11434/api/generate", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ model: "gemma:2b", prompt, stream: true }),
+    body: JSON.stringify({
+      model: "gemma:2b", // 👈 asegúrate que este modelo existe en `ollama list`
+      prompt,
+      stream: false,     // 👈 SIN streaming
+      // sin format:"json" → nos devuelve texto normal
+    }),
   });
 
-  const rawData = await response.text();
-
-  try {
-    const lines = rawData.trim().split("\n").map((l) => JSON.parse(l));
-    return lines.map((l) => l.response || "").join("");
-  } catch (err) {
-    throw new Error("Respuesta inválida de Ollama: " + err.message);
+  if (!response.ok) {
+    const txt = await response.text().catch(() => "");
+    throw new Error(`Error de Ollama (${response.status}): ${txt}`);
   }
+
+  const data = await response.json(); // { model, created_at, response, done, ... }
+
+  const out = data.response || "";
+  return String(out).trim(); // siempre devolvemos string
 }

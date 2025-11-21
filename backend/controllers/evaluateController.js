@@ -1,15 +1,55 @@
 // controllers/evaluateController.js
 import { ollamaRequest } from "../utils/ollamaClient.js";
 
+/**
+ * Intenta extraer un objeto JSON de forma tolerante desde un string.
+ * - Busca el primer "{"
+ * - Busca el último "}"
+ * - Si no hay "}", asume que falta y la agrega
+ */
+function extractJsonObjectLenient(str) {
+  const trimmed = String(str || "").trim();
+  if (!trimmed) return null;
+
+  const start = trimmed.indexOf("{");
+  if (start === -1) {
+    // No hay ni una llave → imposible
+    return null;
+  }
+
+  let end = trimmed.lastIndexOf("}");
+
+  let candidate;
+  if (end === -1) {
+    // No hay "}" → asumimos que faltó la llave de cierre
+    candidate = trimmed.slice(start) + "}";
+  } else {
+    candidate = trimmed.slice(start, end + 1);
+  }
+
+  try {
+    const obj = JSON.parse(candidate);
+    return obj;
+  } catch (e) {
+    console.error("❗ No se pudo parsear ni siquiera el candidate:", e.message);
+    console.error("Candidate problemático:", candidate);
+    return null;
+  }
+}
+
 export async function evaluateOpen(req, res) {
   const { text, studentAnswer } = req.body || {};
 
   if (!text || !text.trim()) {
-    return res.status(400).json({ error: "Debe enviarse el texto base para evaluar." });
+    return res
+      .status(400)
+      .json({ error: "Debe enviarse el texto base para evaluar." });
   }
 
   if (!studentAnswer || !studentAnswer.trim()) {
-    return res.status(400).json({ error: "Debe escribirse una respuesta del estudiante para evaluar." });
+    return res.status(400).json({
+      error: "Debe escribirse una respuesta del estudiante para evaluar.",
+    });
   }
 
   try {
@@ -40,26 +80,40 @@ Mala respuesta: "El sol está triste." → Puntaje: 4 (no tiene relación)
 Regular: "Habla del sol y los niños." → Puntaje: 10
 Buena: "El texto muestra alegría en un día soleado." → Puntaje: 17
 
-Responde **solo en JSON válido** con esta estructura exacta:
+Responde *solo en JSON válido* con esta estructura exacta:
 {
-"score": número del 0 al 20,
-"feedback": "Retroalimentación breve (máx. 3 oraciones), indicando comprensión, errores ortográficos o de coherencia."
+  "score": número del 0 al 20,
+  "feedback": "Retroalimentación breve (máx. 3 oraciones), indicando comprensión, errores ortográficos o de coherencia."
 }
-`;
-    const output = await ollamaRequest(prompt);
+`.trim();
 
+    const output = await ollamaRequest(prompt);
+    const raw = String(output || "").trim();
+
+    // 1) Intento directo
     try {
-      const parsed = JSON.parse(output.trim());
+      const parsed = JSON.parse(raw);
       return res.json(parsed);
     } catch {
-      console.error("⚠️ No fue JSON válido:", output);
-      return res.status(502).json({
-        error: "La respuesta del modelo no fue válida.",
-        raw: output,
-      });
+      console.warn("⚠️ JSON.parse directo falló en evaluateOpen, intentando lenient…");
     }
+
+    // 2) Intento lenient (arreglar llave faltante o texto extra)
+    const obj = extractJsonObjectLenient(raw);
+    if (obj && typeof obj.score === "number" && typeof obj.feedback === "string") {
+      return res.json(obj);
+    }
+
+    // 3) Nada funcionó → devolvemos raw para debug
+    console.error("⚠️ No fue JSON válido:", raw);
+    return res.status(502).json({
+      error: "La respuesta del modelo no fue válida.",
+      raw,
+    });
   } catch (err) {
-    console.error("❌ Error con Ollama:", err.message);
-    res.status(500).json({ error: "Error interno al evaluar resumen." });
+    console.error("❌ Error con Ollama:", err.message || err);
+    res
+      .status(500)
+      .json({ error: "Error interno al evaluar resumen." });
   }
 }
