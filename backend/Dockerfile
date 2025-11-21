@@ -3,10 +3,10 @@ FROM node:20-alpine
 
 WORKDIR /app
 
-# Copiamos package.json y package-lock.json si existe
+# Copiamos package.json y package-lock.json
 COPY package*.json ./
 
-# Instalamos TODAS las dependencias (prod + dev)
+# Instalamos dependencias
 RUN npm install
 
 # Copiamos el resto del código
@@ -17,4 +17,5 @@ ENV NODE_ENV=development
 
 EXPOSE 5000
 
-CMD ["npm", "run", "dev"]
+# En lugar de "npm run dev" (nodemon) mejor usar start
+CMD ["npm", "start"]

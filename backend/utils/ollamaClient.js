@@ -1,13 +1,14 @@
 // utils/ollamaClient.js (ESM)
+const baseUrl = process.env.OLLAMA_BASE_URL || "http://localhost:11434";
+
 export async function ollamaRequest(prompt) {
-  const response = await fetch("http://localhost:11434/api/generate", {
+  const response = await fetch(`${baseUrl}/api/generate`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
-      model: "gemma:2b", // 👈 asegúrate que este modelo existe en `ollama list`
+      model: "gemma:2b", // asegúrate que existe en `ollama list`
       prompt,
-      stream: false,     // 👈 SIN streaming
-      // sin format:"json" → nos devuelve texto normal
+      stream: false,
     }),
   });
 
@@ -16,8 +17,7 @@ export async function ollamaRequest(prompt) {
     throw new Error(`Error de Ollama (${response.status}): ${txt}`);
   }
 
-  const data = await response.json(); // { model, created_at, response, done, ... }
-
+  const data = await response.json();
   const out = data.response || "";
-  return String(out).trim(); // siempre devolvemos string
+  return String(out).trim();
 }

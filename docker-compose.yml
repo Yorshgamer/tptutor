@@ -11,14 +11,18 @@ services:
       - ./backend/.env
     environment:
       NODE_ENV: development
-      # Puedes sobreescribir aquí si quieres:
-      # MONGODB_URI: mongodb+srv://...
+      # 👇 muy importante para que el backend pueda llamar al n8n del host
+      N8N_WEBHOOK_READING_COMPLETED: "http://host.docker.internal:5678/webhook/tptutor/reading-completed"
+      OLLAMA_BASE_URL: "http://host.docker.internal:11434"
     ports:
       - "5000:5000"
     volumes:
       - ./backend:/app
       - /app/node_modules
-
+    extra_hosts:
+      # 👇 en Linux esto hace que "host.docker.internal" apunte al host
+      - "host.docker.internal:host-gateway"
+      
   frontend:
     build:
       context: ./frontend
@@ -26,8 +30,8 @@ services:
     container_name: mern-frontend
     restart: always
     environment:
-      # Esto lo usará Vite en vite.config.js
-      API_TARGET: http://backend:5000
+      # Ahora el proxy apunta al servicio de Docker (backend)
+      VITE_API_TARGET: "http://backend:5000"
     depends_on:
       - backend
     ports:
