@@ -38,4 +38,11 @@ module.exports = {
       lines: 70,
     },
   },
+  globals: {
+    'import.meta': {
+      env: {
+        VITE_API_URL: 'http://localhost:3000'
+      }
+    }
+  }
 };

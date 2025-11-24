@@ -1,183 +1,282 @@
 /**
- * Tests for controllers/readingResultController.js
- *
- * Ubícalo en: backend/__tests__/readingResultController.test.js
+ * __tests__/readingResult.controller.test.js
+ * Cobertura Objetivo: 100% Statements, Branches, Functions, Lines
  */
 
 import { jest } from "@jest/globals";
 
-// Mock Mongoose models and n8n utils
-jest.mock("../models/Project.js", () => {
-  return { Project: { findById: jest.fn(), findByIdAndUpdate: jest.fn() } };
-});
-jest.mock("../models/ReadingActivity.js", () => {
-  return { ReadingActivity: { findById: jest.fn(), create: jest.fn(), countDocuments: jest.fn() } };
-});
-jest.mock("../models/ReadingResult.js", () => {
-  return { ReadingResult: { create: jest.fn(), distinct: jest.fn() } };
-});
-jest.mock("../models/User.js", () => {
-  return { User: { findById: jest.fn() } };
-});
-jest.mock("../utils/n8nClient.js", () => {
-  return { notifyReadingCompleted: jest.fn() };
-});
+// ==========================================
+// 1. MOCKS
+// ==========================================
 
-const { Project } = await import("../models/Project.js");
-const { ReadingActivity } = await import("../models/ReadingActivity.js");
-const { ReadingResult } = await import("../models/ReadingResult.js");
-const { User } = await import("../models/User.js");
-const { notifyReadingCompleted } = await import("../utils/n8nClient.js");
+// Mock de Modelos Mongoose
+jest.mock("../models/Project.js", () => ({
+  Project: {
+    findById: jest.fn(),
+    findByIdAndUpdate: jest.fn(),
+  },
+}));
 
-const { createReadingResult } = await import("../controllers/readingResultController.js");
+jest.mock("../models/ReadingActivity.js", () => ({
+  ReadingActivity: {
+    findById: jest.fn(),
+    create: jest.fn(),
+    countDocuments: jest.fn(),
+  },
+}));
 
-// Helper res
-function makeRes() {
-  const res = {};
-  res.status = jest.fn().mockReturnValue(res);
-  res.json = jest.fn().mockReturnValue(res);
-  return res;
-}
+jest.mock("../models/ReadingResult.js", () => ({
+  ReadingResult: {
+    create: jest.fn(),
+    distinct: jest.fn(),
+  },
+}));
 
-describe("readingResultController.createReadingResult", () => {
+jest.mock("../models/User.js", () => ({
+  User: {
+    findById: jest.fn(),
+  },
+}));
+
+// Mock de n8n (External Service)
+jest.mock("../utils/n8nClient.js", () => ({
+  notifyReadingCompleted: jest.fn(),
+}));
+
+// Helper logs
+const suppressLogs = () => {
+  const spy = jest.spyOn(console, "error").mockImplementation(() => {});
+  return spy;
+};
+
+// ==========================================
+// 2. VARIABLES GLOBALES
+// ==========================================
+let createReadingResult;
+let Project, ReadingActivity, ReadingResult, User, n8nClient;
+let req, res;
+
+describe("📊 readingResultController", () => {
+  beforeAll(async () => {
+    // Import dinámico de modelos y utilidades mockeadas
+    const projectMod = await import("../models/Project.js");
+    Project = projectMod.Project;
+
+    const activityMod = await import("../models/ReadingActivity.js");
+    ReadingActivity = activityMod.ReadingActivity;
+
+    const resultMod = await import("../models/ReadingResult.js");
+    ReadingResult = resultMod.ReadingResult;
+
+    const userMod = await import("../models/User.js");
+    User = userMod.User;
+
+    n8nClient = await import("../utils/n8nClient.js");
+
+    // Import del controlador bajo prueba
+    const ctrlMod = await import("../controllers/readingResultController.js");
+    createReadingResult = ctrlMod.createReadingResult;
+  });
+
   beforeEach(() => {
     jest.clearAllMocks();
-  });
-
-  test("returns 404 when project not found", async () => {
-    const req = { body: { projectId: "p1", activityId: "a1", mcScore: 10, openScore: 10, rawText: "x" }, user: { id: "u1" } };
-    Project.findById.mockResolvedValue(null);
-
-    const res = makeRes();
-
-    await createReadingResult(req, res);
-
-    expect(Project.findById).toHaveBeenCalledWith("p1");
-    expect(res.status).toHaveBeenCalledWith(404);
-    expect(res.json).toHaveBeenCalledWith({ ok: false, error: "PROJECT_NOT_FOUND" });
-  });
-
-  test("returns 403 when project owner mismatch", async () => {
-    const req = { body: { projectId: "p1", activityId: "a1", mcScore: 10, openScore: 10, rawText: "x" }, user: { id: "u2" } };
-    // project ownerId is u1, request has u2 -> forbidden
-    Project.findById.mockResolvedValue({ _id: "p1", ownerId: "u1" });
-    User.findById.mockResolvedValue({ _id: "u2", name: "Student" });
-
-    const res = makeRes();
-
-    await createReadingResult(req, res);
-
-    expect(res.status).toHaveBeenCalledWith(403);
-    expect(res.json).toHaveBeenCalledWith({ ok: false, error: "FORBIDDEN_PROJECT" });
-  });
-
-  test("creates activity if missing, creates result, recalculates progress and notifies when passed", async () => {
-    const req = {
-      body: { projectId: "p1", activityId: "a1", mcScore: 18, openScore: 16, rawText: "texto", answers: {} },
-      user: { id: "u1" },
+    
+    // Setup básico de Request/Response
+    req = {
+      body: {
+        projectId: "proj_1",
+        activityId: "act_1",
+        mcScore: 10,
+        openScore: 10,
+        rawText: "Texto lectura",
+      },
+      user: { id: "student_1" },
     };
-    // project owner is u1 -> ok
-    Project.findById.mockResolvedValue({ _id: "p1", ownerId: "u1" });
-    User.findById.mockResolvedValue({ _id: "u1", name: "Alumno" });
 
-    // activity not found -> create it
-    ReadingActivity.findById.mockResolvedValue(null);
-    ReadingActivity.create.mockResolvedValue({ _id: "a1", projectId: "p1", title: "Lectura 1", minScore: 14 });
-
-    // ReadingResult.create -> return result
-    ReadingResult.create.mockResolvedValue({
-      activityId: "a1",
-      projectId: "p1",
-      studentId: "u1",
-      mcScore: 18,
-      openScore: 16,
-      totalScore: 17,
-      passed: true,
-    });
-
-    // For recalcProjectProgress:
-    // totalActivities = countDocuments
-    ReadingActivity.countDocuments.mockResolvedValue(3);
-    // passed activities distinct -> returns 2 (so completedActivities=2)
-    ReadingResult.distinct.mockResolvedValue(["a1", "a2"]);
-    Project.findByIdAndUpdate.mockResolvedValue(true);
-
-    const res = makeRes();
-
-    await createReadingResult(req, res);
-
-    // Assert create called for activity
-    expect(ReadingActivity.create).toHaveBeenCalled();
-
-    // Assert result created
-    expect(ReadingResult.create).toHaveBeenCalledWith(expect.objectContaining({
-      activityId: "a1",
-      projectId: "p1",
-      studentId: "u1",
-      mcScore: 18,
-      openScore: 16,
-    }));
-
-    // Assert notifyReadingCompleted called because passed === true
-    expect(notifyReadingCompleted).toHaveBeenCalled();
-
-    // Response 201 with data.result and progress
-    expect(res.status).toHaveBeenCalledWith(201);
-    const jsonArg = res.json.mock.calls[0][0];
-    expect(jsonArg.ok).toBe(true);
-    expect(jsonArg.data).toHaveProperty("result");
-    expect(jsonArg.data).toHaveProperty("progress");
-  });
-
-  test("creates result when not passed and does not notify", async () => {
-    const req = {
-      body: { projectId: "p1", activityId: "a1", mcScore: 6, openScore: 6, rawText: "texto" },
-      user: { id: "u1" },
+    res = {
+      status: jest.fn().mockReturnThis(),
+      json: jest.fn(),
     };
-    Project.findById.mockResolvedValue({ _id: "p1", ownerId: "u1" });
-    User.findById.mockResolvedValue({ _id: "u1", name: "Alumno" });
-
-    ReadingActivity.findById.mockResolvedValue({ _id: "a1", minScore: 14 });
-    ReadingResult.create.mockResolvedValue({ passed: false });
-
-    ReadingActivity.countDocuments.mockResolvedValue(2);
-    ReadingResult.distinct.mockResolvedValue([]);
-    Project.findByIdAndUpdate.mockResolvedValue(true);
-
-    const res = makeRes();
-
-    await createReadingResult(req, res);
-
-    expect(ReadingResult.create).toHaveBeenCalled();
-    expect(notifyReadingCompleted).not.toHaveBeenCalled();
-
-    expect(res.status).toHaveBeenCalledWith(201);
-    const jsonArg = res.json.mock.calls[0][0];
-    expect(jsonArg.ok).toBe(true);
-    expect(jsonArg.data).toHaveProperty("result");
   });
 
-  test("returns 400 on validation error (zod)", async () => {
-    const req = { body: { /* invalid body */ }, user: { id: "u1" } };
-    const res = makeRes();
+  // ==========================================
+  // TESTS DE VALIDACIÓN Y ACCESO
+  // ==========================================
+
+  test("🚫 400 si falla validación Zod (Input inválido)", async () => {
+    const consoleSpy = suppressLogs();
+    req.body.mcScore = -5; // Inválido (min 0)
 
     await createReadingResult(req, res);
 
     expect(res.status).toHaveBeenCalledWith(400);
-    const body = res.json.mock.calls[0][0];
-    expect(body.ok).toBe(false);
-    expect(body.error).toBe("VALIDATION");
-    expect(body).toHaveProperty("issues");
+    expect(res.json).toHaveBeenCalledWith(expect.objectContaining({ error: "VALIDATION" }));
+    consoleSpy.mockRestore();
   });
 
-  test("returns 500 on unexpected error", async () => {
-    const req = { body: { projectId: "p1", activityId: "a1", mcScore: 10, openScore: 10, rawText: "x" }, user: { id: "u1" } };
-    Project.findById.mockRejectedValue(new Error("DB crash"));
-    const res = makeRes();
+  test("🚫 404 si el proyecto no existe", async () => {
+    Project.findById.mockResolvedValue(null);
+
+    await createReadingResult(req, res);
+
+    expect(res.status).toHaveBeenCalledWith(404);
+    expect(res.json).toHaveBeenCalledWith(expect.objectContaining({ error: "PROJECT_NOT_FOUND" }));
+  });
+
+  test("🚫 403 si el usuario no es el dueño del proyecto", async () => {
+    Project.findById.mockResolvedValue({ 
+      _id: "proj_1", 
+      ownerId: { toString: () => "other_student" } // Diferente a req.user.id
+    });
+    User.findById.mockReturnValue({ select: jest.fn().mockResolvedValue({}) });
+
+    await createReadingResult(req, res);
+
+    expect(res.status).toHaveBeenCalledWith(403);
+    expect(res.json).toHaveBeenCalledWith(expect.objectContaining({ error: "FORBIDDEN_PROJECT" }));
+  });
+
+  // ==========================================
+  // TESTS DE LÓGICA DE NEGOCIO (Happy Paths)
+  // ==========================================
+
+  test("✅ Crea resultado APROBADO, crea actividad nueva y NOTIFICA a n8n", async () => {
+    // 1. Setup Data
+    const projectMock = { _id: "proj_1", ownerId: { toString: () => "student_1" } };
+    const userMock = { _id: "student_1", name: "Juan" };
+    
+    // Mocks iniciales
+    Project.findById.mockResolvedValue(projectMock);
+    User.findById.mockReturnValue({ select: jest.fn().mockResolvedValue(userMock) });
+
+    // 2. Simulamos que la actividad NO existe (null) -> debe crearla
+    ReadingActivity.findById.mockResolvedValue(null);
+    ReadingActivity.create.mockResolvedValue({ _id: "act_1", minScore: 14 });
+
+    // 3. Simulamos creación de resultado
+    // Nota: mcScore 15 + openScore 15 = 30 / 2 = 15 (>= 14 Aprobado)
+    req.body.mcScore = 15;
+    req.body.openScore = 15;
+    
+    ReadingResult.create.mockImplementation((data) => Promise.resolve({ ...data, _id: "res_1" }));
+
+    // 4. Simulamos recálculo de progreso
+    ReadingActivity.countDocuments.mockResolvedValue(10); // Total
+    ReadingResult.distinct.mockResolvedValue(["act_1", "act_2"]); // 2 completadas
+
+    // EJECUCIÓN
+    await createReadingResult(req, res);
+
+    // ASERCIONES
+    
+    // a) Creación dinámica de actividad
+    expect(ReadingActivity.create).toHaveBeenCalledWith(expect.objectContaining({
+      _id: "act_1",
+      minScore: 14 // default
+    }));
+
+    // b) Creación de resultado con Passed = true
+    expect(ReadingResult.create).toHaveBeenCalledWith(expect.objectContaining({
+      passed: true,
+      totalScore: 15
+    }));
+
+    // c) Recálculo de progreso
+    expect(Project.findByIdAndUpdate).toHaveBeenCalledWith("proj_1", {
+      totalActivities: 10,
+      completedActivities: 2,
+      progressPercent: 20 // (2/10)*100
+    });
+
+    // d) Notificación n8n (Branch passed=true)
+    expect(n8nClient.notifyReadingCompleted).toHaveBeenCalledWith(expect.objectContaining({
+      result: expect.objectContaining({ passed: true })
+    }));
+
+    // e) Respuesta final
+    expect(res.status).toHaveBeenCalledWith(201);
+  });
+
+  test("✅ Crea resultado REPROBADO, usa actividad existente y NO notifica", async () => {
+    // Setup
+    Project.findById.mockResolvedValue({ _id: "proj_1", ownerId: { toString: () => "student_1" } });
+    User.findById.mockReturnValue({ select: jest.fn().mockResolvedValue({}) });
+
+    // Actividad EXISTE (minScore custom 18)
+    ReadingActivity.findById.mockResolvedValue({ _id: "act_1", minScore: 18 });
+
+    // Scores bajos: (10 + 10) / 2 = 10 (< 18 Reprobado)
+    req.body.mcScore = 10;
+    req.body.openScore = 10;
+
+    ReadingResult.create.mockImplementation((data) => Promise.resolve({ ...data }));
+    
+    // Progreso mocks
+    ReadingActivity.countDocuments.mockResolvedValue(5);
+    ReadingResult.distinct.mockResolvedValue(["act_X"]);
+
+    await createReadingResult(req, res);
+
+    // Aserciones
+    expect(ReadingActivity.create).not.toHaveBeenCalled(); // Ya existía
+    expect(ReadingResult.create).toHaveBeenCalledWith(expect.objectContaining({
+      passed: false, // Reprobado
+      totalScore: 10
+    }));
+    
+    // NO debe notificar a n8n
+    expect(n8nClient.notifyReadingCompleted).not.toHaveBeenCalled(); 
+  });
+
+  // ==========================================
+  // EDGE CASES & BRANCH COVERAGE
+  // ==========================================
+
+  test("🔥 Branch: Evita división por cero en progreso (totalActivities = 0)", async () => {
+    Project.findById.mockResolvedValue({ _id: "proj_1", ownerId: { toString: () => "student_1" } });
+    User.findById.mockReturnValue({ select: jest.fn().mockResolvedValue({}) });
+    ReadingActivity.findById.mockResolvedValue({ minScore: 14 });
+    ReadingResult.create.mockResolvedValue({});
+
+    // Simulamos que countDocuments devuelve 0 (Branch coverage crítico)
+    ReadingActivity.countDocuments.mockResolvedValue(0);
+    ReadingResult.distinct.mockResolvedValue([]);
+
+    await createReadingResult(req, res);
+
+    expect(Project.findByIdAndUpdate).toHaveBeenCalledWith("proj_1", {
+      totalActivities: 0,
+      completedActivities: 0,
+      progressPercent: 0 // Branch else ejecutada
+    });
+  });
+
+  test("🔥 Branch: Usa fallback minScore 14 si actividad no lo tiene", async () => {
+    Project.findById.mockResolvedValue({ _id: "proj_1", ownerId: { toString: () => "student_1" } });
+    User.findById.mockReturnValue({ select: jest.fn().mockResolvedValue({}) });
+    
+    // Actividad existe pero minScore es undefined/null
+    ReadingActivity.findById.mockResolvedValue({ _id: "act_1", minScore: undefined });
+    
+    req.body.mcScore = 14; 
+    req.body.openScore = 14; // Promedio 14
+
+    await createReadingResult(req, res);
+
+    // Debería usar 14 por defecto y pasar
+    expect(ReadingResult.create).toHaveBeenCalledWith(expect.objectContaining({
+      passed: true
+    }));
+  });
+
+  test("💥 Error Interno (Catch global)", async () => {
+    const consoleSpy = suppressLogs();
+    Project.findById.mockRejectedValue(new Error("DB Explosion"));
 
     await createReadingResult(req, res);
 
     expect(res.status).toHaveBeenCalledWith(500);
-    expect(res.json).toHaveBeenCalledWith({ ok: false, error: "SERVER" });
+    expect(res.json).toHaveBeenCalledWith(expect.objectContaining({ error: "SERVER" }));
+    consoleSpy.mockRestore();
   });
 });

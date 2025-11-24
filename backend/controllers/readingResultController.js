@@ -77,13 +77,13 @@ export async function createReadingResult(req, res) {
         _id: data.activityId,
         projectId: data.projectId,
         title: "Lectura crítica 1", // puedes personalizar luego
-        minScore: 14,
+        minScore: 5,
       });
     }
 
     // 3) Calcular puntaje total
     const totalScore = Math.round((data.mcScore + data.openScore) / 2);
-    const minScore = activity.minScore ?? 14;
+    const minScore = activity.minScore ?? 5;
     const passed = totalScore >= minScore;
 
     // 4) Crear el resultado

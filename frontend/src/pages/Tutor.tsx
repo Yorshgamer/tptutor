@@ -19,7 +19,11 @@ interface TutorProps {
   onCompleted?: () => void; // opcional, para refrescar proyectos
 }
 
-export default function Tutor({projectId, activityId, onCompleted }: TutorProps) {
+export default function Tutor({
+  projectId,
+  activityId,
+  onCompleted,
+}: TutorProps) {
   const [text, setText] = useState("");
   const [count, setCount] = useState(3);
   const [loadingGenerate, setLoadingGenerate] = useState(false);
@@ -213,6 +217,7 @@ export default function Tutor({projectId, activityId, onCompleted }: TutorProps)
                 type="file"
                 accept=".docx"
                 onChange={handleFileUpload}
+                data-testid="tutor-file-input" // 👈 2. ID al input de archivo
                 className="block w-full text-sm text-slate-600 
                file:mr-4 file:py-2 file:px-4 
                file:rounded-lg file:border-0 
@@ -233,6 +238,7 @@ export default function Tutor({projectId, activityId, onCompleted }: TutorProps)
               placeholder="Pega aquí un texto para generar preguntas…"
               value={text}
               onChange={(e) => setText(e.target.value)}
+              data-testid="tutor-text-area" // 👈 3. ID al área de texto
             />
           </div>
 
@@ -247,6 +253,7 @@ export default function Tutor({projectId, activityId, onCompleted }: TutorProps)
                 max={10}
                 value={count}
                 onChange={(e) => setCount(Number(e.target.value))}
+                data-testid="tutor-count-input" // 👈 4. ID al input numérico
                 className="w-20 rounded-lg border border-slate-300 p-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent"
               />
             </div>
@@ -255,6 +262,7 @@ export default function Tutor({projectId, activityId, onCompleted }: TutorProps)
               <Button
                 onClick={handleGenerate}
                 disabled={loadingGenerate}
+                data-testid="tutor-btn-generate" // 👈 5. ID al botón generar
                 className="min-w-[160px] bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 shadow-sm"
               >
                 {loadingGenerate ? (
@@ -273,6 +281,7 @@ export default function Tutor({projectId, activityId, onCompleted }: TutorProps)
                 <Button
                   variant="secondary"
                   onClick={handleVerify}
+                  data-testid="tutor-btn-verify" // 👈 6. ID al botón verificar
                   className="bg-gradient-to-r from-green-600 to-green-700 hover:from-green-700 hover:to-green-800 text-white shadow-sm"
                 >
                   ✅ Verificar respuestas
@@ -292,7 +301,9 @@ export default function Tutor({projectId, activityId, onCompleted }: TutorProps)
       </Card>
 
       {results.length > 0 && (
-        <div className="space-y-4">
+        <div className="space-y-4" data-testid="tutor-results-list">
+          {" "}
+          {/* 👈 7. ID al contenedor de lista */}
           {results.map((qa, i) => (
             <Card
               key={i}
@@ -323,6 +334,7 @@ export default function Tutor({projectId, activityId, onCompleted }: TutorProps)
                           onChange={() =>
                             setSelectedAnswers((prev) => ({ ...prev, [i]: j }))
                           }
+                          data-testid={`q${i}-opt${j}`} // 👈 8. ID dinámico para las opciones
                           className="w-4 h-4 text-blue-600 focus:ring-blue-500"
                         />
                         <span className="text-slate-700 flex-1">
@@ -374,7 +386,10 @@ export default function Tutor({projectId, activityId, onCompleted }: TutorProps)
       )}
 
       {score !== null && (
-        <Card className="p-4 border-l-4 border-l-purple-500 bg-purple-50">
+        <Card
+          className="p-4 border-l-4 border-l-purple-500 bg-purple-50"
+          data-testid="tutor-mc-score"
+        >
           <h3 className="text-lg font-semibold text-purple-700">
             🎯 Tu puntaje en alternativas: {score} / 20
           </h3>
@@ -392,6 +407,7 @@ export default function Tutor({projectId, activityId, onCompleted }: TutorProps)
           placeholder="Escribe aquí tu resumen..."
           value={openAnswer}
           onChange={(e) => setOpenAnswer(e.target.value)}
+          data-testid="tutor-reflection-area"
         />
 
         <div className="flex justify-between items-center mt-2">
@@ -474,6 +490,7 @@ export default function Tutor({projectId, activityId, onCompleted }: TutorProps)
             }
           }}
           disabled={loadingEvaluate || openAnswer.trim().length < 50}
+          data-testid="tutor-btn-eval-save" // 👈 11. ID al botón de evaluar/guardar
           className={`mt-3 min-w-[160px] ${
             openAnswer.trim().length < 50
               ? "bg-gray-400 cursor-not-allowed"
@@ -497,7 +514,10 @@ export default function Tutor({projectId, activityId, onCompleted }: TutorProps)
         )}
 
         {openEval && (
-          <div className="mt-3 p-4 border-l-4 border-l-purple-500 bg-purple-50 rounded-lg">
+          <div
+            className="mt-3 p-4 border-l-4 border-l-purple-500 bg-purple-50 rounded-lg"
+            data-testid="tutor-final-eval"
+          >
             <p className="font-semibold text-purple-700 text-lg">
               🎯 Puntaje resumen: {openEval.score} / 20
             </p>
@@ -512,7 +532,10 @@ export default function Tutor({projectId, activityId, onCompleted }: TutorProps)
           </p>
         )}
         {savingResult === "saved" && (
-          <p className="mt-2 text-sm text-green-600 font-medium">
+          <p
+            className="mt-2 text-sm text-green-600 font-medium"
+            data-testid="tutor-save-success"
+          >
             ✅ Resultado guardado correctamente. Tu progreso ha sido
             actualizado.
           </p>

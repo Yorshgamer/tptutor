@@ -1,6 +1,14 @@
+/**
+ * __tests__/readingActivity.controller.test.js
+ * Cobertura Objetivo: 100%
+ */
+
 import { jest } from "@jest/globals";
 
-// Mock modules
+// ==========================================
+// 1. MOCKS
+// ==========================================
+// Mockeamos el modelo Mongoose
 jest.mock("../models/ReadingActivity.js", () => {
   return {
     ReadingActivity: {
@@ -10,112 +18,164 @@ jest.mock("../models/ReadingActivity.js", () => {
   };
 });
 
-const { ReadingActivity } = await import("../models/ReadingActivity.js");
-const {
-  createReadingActivity,
-  listReadingActivities,
-} = await import("../controllers/readingActivityController.js");
+// Helper para silenciar logs de error durante los tests
+const suppressLogs = () => {
+  const spy = jest.spyOn(console, "error").mockImplementation(() => {});
+  return spy;
+};
 
-// Helper para mock de res
-function makeRes() {
-  const res = {};
-  res.status = jest.fn().mockReturnValue(res);
-  res.json = jest.fn().mockReturnValue(res);
-  return res;
-}
+// ==========================================
+// 2. VARIABLES GLOBALES
+// ==========================================
+let ReadingActivity;
+let createReadingActivity;
+let listReadingActivities;
+let req, res;
 
-describe("readingActivityController", () => {
+describe("📚 readingActivityController", () => {
+  
+  // Carga dinámica de módulos ESM
+  beforeAll(async () => {
+    const modelMod = await import("../models/ReadingActivity.js");
+    ReadingActivity = modelMod.ReadingActivity;
+
+    const ctrlMod = await import("../controllers/readingActivityController.js");
+    createReadingActivity = ctrlMod.createReadingActivity;
+    listReadingActivities = ctrlMod.listReadingActivities;
+  });
+
   beforeEach(() => {
     jest.clearAllMocks();
-  });
-
-  test("createReadingActivity - success -> returns 201 and created activity", async () => {
-    // Arrange
-    const req = {
-      body: {
-        projectId: "proj1",
-        activityId: "act1",
-        title: "Actividad 1",
-        minScore: 12,
-      },
+    // Reseteamos req y res básicos
+    req = { body: {}, query: {} };
+    res = {
+      status: jest.fn().mockReturnThis(),
+      json: jest.fn(),
     };
-    const created = {
-      _id: "act1",
-      projectId: "proj1",
-      title: "Actividad 1",
-      minScore: 12,
-    };
-    ReadingActivity.create.mockResolvedValue(created);
+  });
 
-    const res = makeRes();
+  // =================================================================
+  // A. CREATE ACTIVITY TESTS
+  // =================================================================
+  describe("createReadingActivity", () => {
+    test("✅ Crea actividad correctamente (Happy Path)", async () => {
+      // Input válido
+      req.body = {
+        projectId: "proj_123",
+        activityId: "act_ABC",
+        title: "Lectura 1",
+        minScore: 16
+      };
 
-    // Act
-    await createReadingActivity(req, res);
+      // Mock de respuesta de DB
+      const mockSaved = { ...req.body, _id: "act_ABC" };
+      ReadingActivity.create.mockResolvedValue(mockSaved);
 
-    // Assert
-    expect(ReadingActivity.create).toHaveBeenCalledWith({
-      _id: "act1",
-      projectId: "proj1",
-      title: "Actividad 1",
-      minScore: 12,
+      await createReadingActivity(req, res);
+
+      expect(res.status).toHaveBeenCalledWith(201);
+      expect(res.json).toHaveBeenCalledWith({
+        ok: true,
+        data: mockSaved,
+      });
+      // Verificamos que se usó el activityId como _id
+      expect(ReadingActivity.create).toHaveBeenCalledWith(expect.objectContaining({
+        _id: "act_ABC",
+        minScore: 16
+      }));
     });
-    expect(res.status).toHaveBeenCalledWith(201);
-    expect(res.json).toHaveBeenCalledWith({
-      ok: true,
-      data: created,
+
+    test("🔥 Branch: Usa default minScore (14) si no viene en body", async () => {
+      req.body = {
+        projectId: "proj_123",
+        activityId: "act_DEF",
+        title: "Lectura 2",
+        // minScore omitido
+      };
+
+      ReadingActivity.create.mockResolvedValue({ _id: "act_DEF" });
+
+      await createReadingActivity(req, res);
+
+      // Verificamos el fallback ?? 14
+      expect(ReadingActivity.create).toHaveBeenCalledWith(expect.objectContaining({
+        minScore: 14
+      }));
+    });
+
+    test("🚫 Error de Validación Zod (400)", async () => {
+      const consoleSpy = suppressLogs();
+      // Falta projectId y activityId
+      req.body = { title: "Incompleta" };
+
+      await createReadingActivity(req, res);
+
+      expect(res.status).toHaveBeenCalledWith(400);
+      expect(res.json).toHaveBeenCalledWith(expect.objectContaining({
+        error: "VALIDATION"
+      }));
+      consoleSpy.mockRestore();
+    });
+
+    test("💥 Error Genérico de Base de Datos (500)", async () => {
+      const consoleSpy = suppressLogs();
+      req.body = { projectId: "p", activityId: "a", title: "t" };
+      
+      // Simulamos fallo en Mongoose
+      ReadingActivity.create.mockRejectedValue(new Error("DB Down"));
+
+      await createReadingActivity(req, res);
+
+      expect(res.status).toHaveBeenCalledWith(500);
+      expect(res.json).toHaveBeenCalledWith(expect.objectContaining({
+        error: "SERVER"
+      }));
+      consoleSpy.mockRestore();
     });
   });
 
-  test("createReadingActivity - validation error -> returns 400 with issues", async () => {
-    const req = { body: { /* missing required fields */ } };
-    const res = makeRes();
+  // =================================================================
+  // B. LIST ACTIVITY TESTS
+  // =================================================================
+  describe("listReadingActivities", () => {
+    test("✅ Lista filtrando por projectId (Happy Path)", async () => {
+      req.query = { projectId: "proj_1" };
+      
+      // Mock de cadena: find().lean()
+      const mockLean = jest.fn().mockResolvedValue([{ title: "Act 1" }]);
+      ReadingActivity.find.mockReturnValue({ lean: mockLean });
 
-    await createReadingActivity(req, res);
+      await listReadingActivities(req, res);
 
-    expect(res.status).toHaveBeenCalledWith(400);
-    const jsonArg = res.json.mock.calls[0][0];
-    expect(jsonArg.ok).toBe(false);
-    expect(jsonArg.error).toBe("VALIDATION");
-    expect(jsonArg).toHaveProperty("issues");
-  });
+      expect(ReadingActivity.find).toHaveBeenCalledWith({ projectId: "proj_1" });
+      expect(mockLean).toHaveBeenCalled();
+      expect(res.json).toHaveBeenCalledWith({ ok: true, data: [{ title: "Act 1" }] });
+    });
 
-  test("listReadingActivities - without projectId -> returns list", async () => {
-    const req = { query: {} };
-    const items = [
-      { _id: "a1", projectId: "proj1", title: "t1" },
-      { _id: "a2", projectId: "proj2", title: "t2" },
-    ];
-    ReadingActivity.find.mockResolvedValue(items);
+    test("🔥 Branch: Lista todo si no hay projectId en query", async () => {
+      req.query = {}; // Sin filtro
 
-    const res = makeRes();
+      const mockLean = jest.fn().mockResolvedValue([]);
+      ReadingActivity.find.mockReturnValue({ lean: mockLean });
 
-    await listReadingActivities(req, res);
+      await listReadingActivities(req, res);
 
-    expect(ReadingActivity.find).toHaveBeenCalledWith({});
-    expect(res.json).toHaveBeenCalledWith({ ok: true, data: items });
-  });
+      // Verificamos que filter es {}
+      expect(ReadingActivity.find).toHaveBeenCalledWith({}); 
+      expect(res.json).toHaveBeenCalledWith({ ok: true, data: [] });
+    });
 
-  test("listReadingActivities - with projectId -> applies filter", async () => {
-    const req = { query: { projectId: "proj1" } };
-    const items = [{ _id: "a1", projectId: "proj1", title: "t1" }];
-    ReadingActivity.find.mockResolvedValue(items);
+    test("💥 Error Genérico al listar (500)", async () => {
+      const consoleSpy = suppressLogs();
+      
+      // Hacemos que find lance error directamente
+      ReadingActivity.find.mockImplementation(() => { throw new Error("DB Fail"); });
 
-    const res = makeRes();
+      await listReadingActivities(req, res);
 
-    await listReadingActivities(req, res);
-
-    expect(ReadingActivity.find).toHaveBeenCalledWith({ projectId: "proj1" });
-    expect(res.json).toHaveBeenCalledWith({ ok: true, data: items });
-  });
-
-  test("listReadingActivities - DB error -> returns 500", async () => {
-    const req = { query: {} };
-    ReadingActivity.find.mockRejectedValue(new Error("DB FAIL"));
-    const res = makeRes();
-
-    await listReadingActivities(req, res);
-
-    expect(res.status).toHaveBeenCalledWith(500);
-    expect(res.json).toHaveBeenCalledWith({ ok: false, error: "SERVER" });
+      expect(res.status).toHaveBeenCalledWith(500);
+      expect(res.json).toHaveBeenCalledWith(expect.objectContaining({ error: "SERVER" }));
+      consoleSpy.mockRestore();
+    });
   });
 });

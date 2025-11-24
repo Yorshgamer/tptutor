@@ -1,4 +1,4 @@
-// routes/authRoutes.js (ESM)
+// routes/authRoutes.js
 import { Router } from "express";
 import jwt from "jsonwebtoken";
 import { z } from "zod";
@@ -19,8 +19,11 @@ const loginSchema = z.object({
 });
 
 function signToken(payload) {
-  if (!process.env.JWT_SECRET) throw new Error("Falta JWT_SECRET en .env");
-  return jwt.sign(payload, process.env.JWT_SECRET, {
+  // REFACTOR: Extraemos la variable para que el Branch Coverage sea explícito
+  const secret = process.env.JWT_SECRET;
+  if (!secret) throw new Error("Falta JWT_SECRET en .env");
+  
+  return jwt.sign(payload, secret, {
     expiresIn: process.env.JWT_EXPIRES_IN || "1h",
   });
 }
@@ -29,7 +32,9 @@ export async function auth(req, res, next) {
   const hdr = req.headers.authorization || "";
   const parts = hdr.split(" ");
   const token = parts.length === 2 && parts[0] === "Bearer" ? parts[1] : null;
+  
   if (!token) return res.status(401).json({ ok: false, error: "NO_TOKEN" });
+  
   try {
     const payload = jwt.verify(token, process.env.JWT_SECRET);
     req.user = { id: payload.sub, role: payload.role };
@@ -39,15 +44,19 @@ export async function auth(req, res, next) {
   }
 }
 
-// routes/authRoutes.js (fragmento register)
-// routes/authRoutes.js (solo el handler /register)
 router.post("/register", async (req, res) => {
   try {
+    // REFACTOR: Extraemos la lógica del rol fuera del objeto de configuración.
+    // Esto elimina la complejidad del Optional Chaining (?.) dentro del ternario.
+    // req.body siempre es un objeto (gracias a express.json()), pero protegemos el acceso.
+    const rawRole = req.body && req.body.role;
+    const normalizedRole = typeof rawRole === "string" ? rawRole.toLowerCase() : undefined;
+
     const data = registerSchema.parse({
       ...req.body,
-      // por si vienen "Alumno/Profesor" o mayúsculas desde FE:
-      role: typeof req.body?.role === "string" ? req.body.role.toLowerCase() : undefined,
+      role: normalizedRole,
     });
+
     const exists = await User.findOne({ email: data.email });
     if (exists) return res.status(409).json({ ok:false, error:"EMAIL_IN_USE", message:"El correo ya está en uso" });
     
@@ -56,13 +65,11 @@ router.post("/register", async (req, res) => {
     const passwordHash = await User.hashPassword(data.password, Number(process.env.BCRYPT_ROUNDS || 12));
     const user = await User.create({ email: data.email, name: data.name, passwordHash, role: safeRole });
 
-    // firma token (si falla, borra user para no dejar basura)
     let token;
     try {
-      token = jwt.sign({ sub: user._id.toString(), role: user.role }, process.env.JWT_SECRET, {
-        expiresIn: process.env.JWT_EXPIRES_IN || "1h",
-      });
+      token = signToken({ sub: user._id.toString(), role: user.role });
     } catch (e) {
+      // Si falla el token, borramos el usuario (Rollback manual)
       await User.findByIdAndDelete(user._id);
       return res.status(500).json({ ok:false, error:"SERVER_TOKEN", message:"No se pudo crear la sesión" });
     }
@@ -76,7 +83,6 @@ router.post("/register", async (req, res) => {
       },
     });
   } catch (err) {
-    // Zod u otros errores de validación:
     if (err.errors || err.issues) {
       return res.status(400).json({ ok:false, error:"VALIDATION", message:"Datos inválidos", detail: err });
     }
@@ -84,7 +90,6 @@ router.post("/register", async (req, res) => {
     return res.status(500).json({ ok:false, error:"SERVER", message:"Error interno" });
   }
 });
-
 
 router.post("/login", async (req, res) => {
   try {

@@ -1,41 +1,53 @@
 version: "3.9"
 
 services:
+  # 🧠 Backend
   backend:
     build:
       context: ./backend
       dockerfile: Dockerfile
-    container_name: mern-backend
+    container_name: tptutor_backend
     restart: always
+    # Usamos nodemon para desarrollo
+    command: npm run dev
+    
+    # 1. Cargamos tu archivo .env real (donde está la conexión a Atlas)
     env_file:
       - ./backend/.env
+      
+    # 2. Sobrescribimos SOLO lo necesario para que Docker hable con tu PC
     environment:
-      NODE_ENV: development
-      # 👇 muy importante para que el backend pueda llamar al n8n del host
+      PORT: 5000
+      # Forzamos a que n8n apunte al HOST, no al contenedor
       N8N_WEBHOOK_READING_COMPLETED: "http://host.docker.internal:5678/webhook/tptutor/reading-completed"
+      # Forzamos a que Ollama apunte al HOST
       OLLAMA_BASE_URL: "http://host.docker.internal:11434"
+      
     ports:
       - "5000:5000"
     volumes:
       - ./backend:/app
       - /app/node_modules
+      - ./uploads:/app/uploads
+    # Esto permite que el contenedor resuelva "host.docker.internal" como la IP de tu PC
     extra_hosts:
-      # 👇 en Linux esto hace que "host.docker.internal" apunte al host
       - "host.docker.internal:host-gateway"
-      
+
+  # 🎨 Frontend (Igual que antes)
   frontend:
     build:
       context: ./frontend
       dockerfile: Dockerfile
-    container_name: mern-frontend
+    container_name: tptutor_frontend
     restart: always
-    environment:
-      # Ahora el proxy apunta al servicio de Docker (backend)
-      VITE_API_TARGET: "http://backend:5000"
     depends_on:
       - backend
+    environment:
+      VITE_API_TARGET: "http://backend:5000"
     ports:
       - "5173:5173"
     volumes:
       - ./frontend:/app
       - /app/node_modules
+
+# Ya no necesitamos el volumen 'mongo_data' porque usas Atlas

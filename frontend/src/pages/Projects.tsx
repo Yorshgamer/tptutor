@@ -336,15 +336,20 @@ function Modal({
   onClose,
   children,
   title,
+  testId,
 }: {
   open: boolean;
   onClose: () => void;
   title: string;
   children: React.ReactNode;
+  testId?: string;
 }) {
   if (!open) return null;
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4"
+      data-testid={testId}
+    >
       <div className="w-full max-w-4xl rounded-2xl bg-white shadow-xl">
         <div className="flex items-center justify-between border-b px-5 py-3">
           <h3 className="text-base font-semibold">{title}</h3>
@@ -451,7 +456,7 @@ function StudentView() {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6" data-testid="student-projects-view">
       <Card title="Mis Proyectos" subtitle="Filtra y crea proyectos">
         <div className="flex flex-wrap items-center gap-3">
           <div className="relative">
@@ -463,6 +468,7 @@ function StudentView() {
               placeholder="Buscar…"
               value={q}
               onChange={(e) => setQ(e.target.value)}
+              data-testid="search-input"
             />
           </div>
 
@@ -478,7 +484,9 @@ function StudentView() {
           </select>
 
           <div className="ml-auto flex items-center gap-2">
-            <Button variant="secondary" onClick={() => setShowCreate(true)}>
+            <Button variant="secondary" onClick={() => setShowCreate(true)}
+              data-testid="btn-new-project"
+              >
               ➕ Nuevo proyecto
             </Button>
           </div>
@@ -490,12 +498,11 @@ function StudentView() {
             Mi progreso global:
           </span>
           <ProgressBar value={globalProgress} />
-          <span className="text-xs text-slate-500 w-10 text-right">
+          <span className="text-xs text-slate-500 w-10 text-right" data-testid="global-progress-text">
             {globalProgress}%
           </span>
         </div>
       </Card>
-
       <Card>
         <div className="flex items-center justify-between pb-2 text-sm text-slate-500">
           <span>{loading ? "Cargando…" : `${items.length} proyecto(s)`}</span>
@@ -533,7 +540,6 @@ function StudentView() {
           </table>
         </div>
       </Card>
-
       {/* Modales CRUD y Progreso */}
       <CreateModal
         open={showCreate}
@@ -553,9 +559,7 @@ function StudentView() {
           // setShowTutor({ open: false });
         }}
       />
-
       <ViewModal ctx={showView} onClose={() => setShowView({ open: false })} />
-
       <EditModal
         ctx={showEdit}
         onClose={() => setShowEdit({ open: false })}
@@ -582,8 +586,8 @@ function Row({
   onOpenTutor: () => void;
 }) {
   return (
-    <tr className="border-t">
-      {/* Columna 1: Proyecto */}
+<tr className="border-t" data-testid={`project-row-${p.id}`}> 
+  {/* Columna 1: Proyecto */}
       <td className="py-3 pr-4 font-medium">
         <div className="font-semibold">{p.name}</div>
         {p.description && (
@@ -620,16 +624,17 @@ function Row({
       {/* Columna 5: Acciones */}
       <td className="py-3">
         <div className="flex gap-2">
-          <Button variant="ghost" onClick={onView}>
+          <Button variant="ghost" onClick={onView} data-testid={`btn-view-${p.id}`}>
             Ver
           </Button>
-          <Button variant="subtle" onClick={onEdit}>
+          <Button variant="subtle" onClick={onEdit} data-testid={`btn-edit-${p.id}`}>
             Editar
           </Button>
-          <Button variant="secondary" onClick={onOpenTutor}>
+          <Button variant="secondary" onClick={onOpenTutor} data-testid={`btn-tutor-${p.id}`}>
             Tutor
           </Button>
-          <Button variant="danger" onClick={onDelete}>
+          <Button variant="danger" onClick={onDelete}
+          data-testid={`btn-delete-${p.id}`}>
             Eliminar
           </Button>
         </div>
@@ -1007,7 +1012,7 @@ function CreateModal({
   }, [open]);
 
   return (
-    <Modal open={open} onClose={onClose} title="Nuevo proyecto">
+    <Modal open={open} onClose={onClose} title="Nuevo proyecto" testId="modal-create-project">
       <div className="space-y-4">
         <div>
           <label className="mb-1 block text-sm font-medium">Nombre</label>
@@ -1016,6 +1021,7 @@ function CreateModal({
             onChange={(e) => setForm((p) => ({ ...p, name: e.target.value }))}
             placeholder="Ej. Clasificador de Imágenes"
             className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-600"
+            data-testid="input-create-name"
           />
         </div>
         <div>
@@ -1064,6 +1070,7 @@ function CreateModal({
               }
             }}
             disabled={!canSubmit || busy}
+            data-testid="btn-create-save"
           >
             {busy ? "Guardando…" : "Guardar"}
           </Button>
