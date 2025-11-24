@@ -54,6 +54,29 @@ function normalizeQuestions(rawQuestions) {
       };
     });
 }
+// helpers para tests: extraer objetos desde un string y procesarlos (usa la misma lógica interna)
+export function parseObjectBlocksAndNormalize(trimmed) {
+  // trimmed: string (ya .trim())
+  const objectMatches = trimmed.match(/\{[\s\S]*?\}/g);
+  if (objectMatches && objectMatches.length > 0) {
+    const questions = [];
+    for (const objStr of objectMatches) {
+      try {
+        const q = JSON.parse(objStr);
+        questions.push(q);
+      } catch (e) {
+        // Esta es la línea que queremos cubrir en tests: console.warn(...)
+        console.warn("❗ No se pudo parsear un bloque:", e.message);
+      }
+    }
+    if (questions.length > 0) {
+      const norm = normalizeQuestions(questions);
+      return norm;
+    }
+  }
+  return null;
+}
+
 export async function generateQA(req, res) {
   const { text, count } = req.body || {};
   if (!text || !text.trim()) {

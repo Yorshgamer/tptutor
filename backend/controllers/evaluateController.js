@@ -7,7 +7,7 @@ import { ollamaRequest } from "../utils/ollamaClient.js";
  * - Busca el último "}"
  * - Si no hay "}", asume que falta y la agrega
  */
-function extractJsonObjectLenient(str) {
+export function extractJsonObjectLenient(str) {
   const trimmed = String(str || "").trim();
   if (!trimmed) return null;
 
