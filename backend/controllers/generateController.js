@@ -79,10 +79,27 @@ export async function generateQA(req, res) {
 
   try {
     const prompt = `
-Eres un generador de preguntas.
-Texto: ${text}
-Genera ${numQuestions} preguntas.
-JSON ONLY.
+A partir del siguiente texto:
+
+${text}
+
+Genera ${numQuestions} preguntas de opción múltiple para evaluar comprensión lectora.
+Cada pregunta debe tener 4 respuestas posibles y un campo "feedback".
+
+Responde SOLO en formato JSON válido, con esta estructura:
+
+[
+  {
+    "question": "¿...?",
+    "answers": [
+      {"text": "...", "correct": true},
+      {"text": "...", "correct": false},
+      {"text": "...", "correct": false},
+      {"text": "...", "correct": false}
+    ],
+    "feedback": "..."
+  }
+]
 `.trim();
 
     const output = await ollamaRequest(prompt); 
