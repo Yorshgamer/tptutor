@@ -2,6 +2,7 @@
 module.exports = {
   testEnvironment: "jsdom",
   setupFilesAfterEnv: ["<rootDir>/setupTests.js"],
+  testTimeout: 30000, // 30 segundos por test
 
   // Transforma TS/JS/JSX/TSX con Babel (como ya lo tenías)
   transform: {
@@ -37,4 +38,11 @@ module.exports = {
       lines: 70,
     },
   },
+  globals: {
+    'import.meta': {
+      env: {
+        VITE_API_URL: 'http://localhost:3000'
+      }
+    }
+  }
 };

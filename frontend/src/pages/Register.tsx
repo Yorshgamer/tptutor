@@ -1,35 +1,179 @@
-import React from "react";
+import React, { useState, ChangeEvent, FormEvent } from "react";
+import { useNavigate } from "react-router-dom"; // Usamos hook para navegación más limpia
 import Card from "../components/Card";
 import Button from "../components/Button";
 
+const ENDPOINT_REGISTER = "/api/auth/register";
+
+type Msg = { type: "error" | "success" | ""; text: string };
+
 export default function Register() {
+  const [form, setForm] = useState({
+    name: "",
+    email: "",
+    p1: "",
+    p2: "",
+    role: "student",
+  });
+  const [loading, setLoading] = useState(false);
+  const [msg, setMsg] = useState<Msg>({ type: "", text: "" });
+  const navigate = useNavigate();
+
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
+    const { id, value } = e.target;
+    setForm(prev => ({ ...prev, [id]: value }));
+  };
+
+  const handleSubmit = async (e: FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    setMsg({ type: "", text: "" });
+
+    // Validación Cliente
+    if (form.p1 !== form.p2) {
+      setMsg({ type: "error", text: "Las contraseñas no coinciden ⚠️" });
+      return;
+    }
+
+    try {
+      setLoading(true);
+      const res = await fetch(ENDPOINT_REGISTER, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          name: form.name,
+          email: form.email,
+          password: form.p1,
+          role: form.role,
+        }),
+      });
+
+      const payload = await res.json().catch(() => ({}));
+      const ok = payload?.ok ?? res.ok;
+      if (!ok) {
+        throw new Error(payload?.error || "Error al registrar usuario");
+      }
+
+      const data = payload?.data ?? payload;
+      const { token, user } = data || {};
+
+      if (token && user) {
+        localStorage.setItem("token", token);
+        localStorage.setItem("user", JSON.stringify(user));
+      }
+
+      setMsg({
+        type: "success",
+        text: token ? "Cuenta creada. Sesión iniciada ✅" : (payload?.message || "Usuario registrado ✅"),
+      });
+
+      setForm({ name: "", email: "", p1: "", p2: "", role: "student" });
+
+      // Redirección suave si hay token
+      if (token) {
+        setTimeout(() => {
+          navigate("/tutor");
+        }, 1500);
+      }
+
+    } catch (err: any) {
+      setMsg({ type: "error", text: err?.message || "No se pudo registrar" });
+    } finally {
+      setLoading(false);
+    }
+  };
+
   return (
     <div className="max-w-md">
       <Card title="Crear cuenta">
-        <form className="space-y-4" onSubmit={(e)=>{e.preventDefault();}}>
+        <form className="space-y-4" onSubmit={handleSubmit}>
           <div>
             <label htmlFor="name" className="block text-sm font-medium mb-1">Nombre</label>
-            <input id="name" required
+            <input
+              id="name"
+              required
+              value={form.name}
+              onChange={handleChange}
+              data-testid="reg-name" // 👈 Selector
               className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-600"
-              placeholder="Tu nombre" />
+              placeholder="Tu nombre"
+            />
           </div>
+
           <div>
-            <label htmlFor="email2" className="block text-sm font-medium mb-1">Correo</label>
-            <input id="email2" type="email" required
+            <label htmlFor="email" className="block text-sm font-medium mb-1">Correo</label>
+            <input
+              id="email"
+              type="email"
+              required
+              value={form.email}
+              onChange={handleChange}
+              data-testid="reg-email" // 👈 Selector
               className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-600"
-              placeholder="tu@correo.com" />
+              placeholder="tu@correo.com"
+            />
           </div>
+
+          <div>
+            <label htmlFor="role" className="block text-sm font-medium mb-1">Rol</label>
+            <select
+              id="role"
+              value={form.role}
+              onChange={handleChange}
+              data-testid="reg-role" // 👈 Selector
+              className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-600"
+            >
+              <option value="student">Alumno</option>
+              <option value="teacher">Profesor</option>
+            </select>
+          </div>
+
           <div>
             <label htmlFor="p1" className="block text-sm font-medium mb-1">Contraseña</label>
-            <input id="p1" type="password" required minLength={6}
-              className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-600" />
+            <input
+              id="p1"
+              type="password"
+              required
+              minLength={6}
+              value={form.p1}
+              onChange={handleChange}
+              data-testid="reg-pass1" // 👈 Selector
+              className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-600"
+            />
           </div>
+
           <div>
             <label htmlFor="p2" className="block text-sm font-medium mb-1">Confirmar contraseña</label>
-            <input id="p2" type="password" required minLength={6}
-              className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-600" />
+            <input
+              id="p2"
+              type="password"
+              required
+              minLength={6}
+              value={form.p2}
+              onChange={handleChange}
+              data-testid="reg-pass2" // 👈 Selector
+              className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-600"
+            />
           </div>
-          <Button type="submit" className="w-full" variant="secondary">📝 Registrarme</Button>
+
+          {msg.text && (
+            <p
+              data-testid="reg-feedback" // 👈 Selector
+              className={`text-sm font-medium p-2 rounded ${
+                msg.type === "error" ? "bg-red-100 text-red-700" : "bg-green-100 text-green-700"
+              }`}
+            >
+              {msg.text}
+            </p>
+          )}
+
+          <Button 
+            type="submit" 
+            className="w-full" 
+            disabled={loading}
+            data-testid="reg-submit-btn" // 👈 Selector
+          >
+            {loading ? "Registrando..." : "📝 Registrarme"}
+          </Button>
         </form>
       </Card>
     </div>

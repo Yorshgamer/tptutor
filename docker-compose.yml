@@ -1,0 +1,53 @@
+version: "3.9"
+
+services:
+  # 🧠 Backend
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: tptutor_backend
+    restart: always
+    # Usamos nodemon para desarrollo
+    command: npm run dev
+    
+    # 1. Cargamos tu archivo .env real (donde está la conexión a Atlas)
+    env_file:
+      - ./backend/.env
+      
+    # 2. Sobrescribimos SOLO lo necesario para que Docker hable con tu PC
+    environment:
+      PORT: 5000
+      # Forzamos a que n8n apunte al HOST, no al contenedor
+      N8N_WEBHOOK_READING_COMPLETED: "http://host.docker.internal:5678/webhook/tptutor/reading-completed"
+      # Forzamos a que Ollama apunte al HOST
+      OLLAMA_BASE_URL: "http://host.docker.internal:11434"
+      
+    ports:
+      - "5000:5000"
+    volumes:
+      - ./backend:/app
+      - /app/node_modules
+      - ./uploads:/app/uploads
+    # Esto permite que el contenedor resuelva "host.docker.internal" como la IP de tu PC
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+
+  # 🎨 Frontend (Igual que antes)
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: tptutor_frontend
+    restart: always
+    depends_on:
+      - backend
+    environment:
+      VITE_API_TARGET: "http://backend:5000"
+    ports:
+      - "5173:5173"
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules
+
+# Ya no necesitamos el volumen 'mongo_data' porque usas Atlas

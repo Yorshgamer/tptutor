@@ -13,11 +13,24 @@ interface QAResult {
   feedback?: string;
 }
 
-export default function Tutor() {
+interface TutorProps {
+  projectId: string;
+  activityId: string;
+  onCompleted?: () => void; // opcional, para refrescar proyectos
+}
+
+export default function Tutor({
+  projectId,
+  activityId,
+  onCompleted,
+}: TutorProps) {
   const [text, setText] = useState("");
   const [count, setCount] = useState(3);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState("");
+  const [loadingGenerate, setLoadingGenerate] = useState(false);
+  const [loadingEvaluate, setLoadingEvaluate] = useState(false);
+  const [errorGenerate, setErrorGenerate] = useState("");
+  const [errorEvaluate, setErrorEvaluate] = useState("");
+  const [errorUpload, setErrorUpload] = useState("");
   const [results, setResults] = useState<QAResult[]>([]);
   const [rawOutput, setRawOutput] = useState<string | null>(null);
   const [selectedAnswers, setSelectedAnswers] = useState<
@@ -31,18 +44,28 @@ export default function Tutor() {
     feedback: string;
   } | null>(null);
 
+  // estado para guardar en backend
+  const [savingResult, setSavingResult] = useState<
+    "idle" | "saving" | "saved" | "error"
+  >("idle");
+  const [saveError, setSaveError] = useState<string>("");
+
   const handleGenerate = async () => {
     if (!text.trim()) {
-      setError("Debes ingresar un texto.");
+      setErrorGenerate("Debes ingresar un texto.");
       return;
     }
 
-    setLoading(true);
-    setError("");
+    setLoadingGenerate(true);
+    setErrorGenerate("");
     setResults([]);
     setRawOutput(null);
     setSelectedAnswers({});
     setFeedback({});
+    setScore(null);
+    setOpenEval(null);
+    setSavingResult("idle");
+    setSaveError("");
 
     try {
       const resp = await fetch("/api/generate-qa", {
@@ -59,16 +82,16 @@ export default function Tutor() {
       } else if (data.raw) {
         setRawOutput(data.raw);
       } else {
-        setError("Formato inesperado de respuesta.");
+        setErrorGenerate("Formato inesperado de respuesta.");
       }
     } catch (err: unknown) {
       if (err instanceof Error) {
-        setError("Error al generar preguntas: " + err.message);
+        setErrorGenerate("Error al generar preguntas: " + err.message);
       } else {
-        setError("Error desconocido al generar preguntas.");
+        setErrorGenerate("Error desconocido al generar preguntas.");
       }
     } finally {
-      setLoading(false);
+      setLoadingGenerate(false);
     }
   };
 
@@ -77,21 +100,24 @@ export default function Tutor() {
     let correctCount = 0;
 
     results.forEach((qa, i) => {
-    const selected = selectedAnswers[i];
-    if (selected !== null && qa.answers[selected]?.correct) {
-      newFeedback[i] = "¡Correcto! 🎉 " + (qa.feedback || "");
-      correctCount++;
-    } else {
-      // Mostrar cuál era la correcta
-      const correctAns = qa.answers.find((a) => a.correct)?.text || "Respuesta no encontrada";
-      newFeedback[i] = `❌ Incorrecto. La respuesta correcta era: "${correctAns}". ${qa.feedback || ""}`;
-    }
-  });
+      const selected = selectedAnswers[i];
+      if (selected !== null && qa.answers[selected]?.correct) {
+        newFeedback[i] = "¡Correcto! 🎉 " + (qa.feedback || "");
+        correctCount++;
+      } else {
+        const correctAns =
+          qa.answers.find((a) => a.correct)?.text || "Respuesta no encontrada";
+        newFeedback[
+          i
+        ] = `❌ Incorrecto. La respuesta correcta era: "${correctAns}". ${
+          qa.feedback || ""
+        }`;
+      }
+    });
 
     setFeedback(newFeedback);
 
-    // Calcular puntaje proporcional a 20
-    const total = results.length;
+    const total = results.length || 1; // evitar división por 0
     const scoreCalc = Math.round((correctCount / total) * 20);
     setScore(scoreCalc);
   };
@@ -111,12 +137,63 @@ export default function Tutor() {
       const data = await resp.json();
       if (resp.ok && data.text) {
         setText(data.text);
-        setError("");
+        setErrorUpload("");
       } else {
-        setError(data.error || "Error al procesar archivo.");
+        setErrorUpload(data.error || "Error al procesar archivo.");
       }
     } catch (err: any) {
-      setError("Error al subir archivo: " + err.message);
+      setErrorUpload("Error al subir archivo: " + err.message);
+    }
+  };
+
+  // 🔐 helper para obtener token (ajusta según tu app)
+  function getAuthToken() {
+    return localStorage.getItem("token"); // o donde lo guardes
+  }
+
+  // 💾 Guardar resultado en backend y actualizar progreso
+  const saveReadingResult = async (mcScore: number, openScore: number) => {
+    try {
+      setSavingResult("saving");
+      setSaveError("");
+
+      const token = getAuthToken();
+      if (!token) {
+        throw new Error(
+          "No hay sesión activa. Vuelve a iniciar sesión para guardar tu progreso."
+        );
+      }
+
+      const resp = await fetch("/api/reading-results", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          projectId, // viene del prop
+          activityId,
+          mcScore, // puntaje de alternativas (0–20)
+          openScore, // puntaje del resumen (0–20)
+          reflection: openAnswer,
+          rawText: text,
+          answers: selectedAnswers, // mapa de respuestas marcadas
+        }),
+      });
+
+      const data = await resp.json();
+      if (!resp.ok) {
+        throw new Error(data.error || "Error al guardar el resultado.");
+      }
+
+      setSavingResult("saved");
+      console.log("Resultado guardado:", data);
+
+      // 🔁 avisar al padre (Projects.tsx) para que recargue la lista
+      onCompleted?.();
+    } catch (err: any) {
+      setSavingResult("error");
+      setSaveError(err.message || "Error al guardar el resultado.");
     }
   };
 
@@ -140,6 +217,7 @@ export default function Tutor() {
                 type="file"
                 accept=".docx"
                 onChange={handleFileUpload}
+                data-testid="tutor-file-input" // 👈 2. ID al input de archivo
                 className="block w-full text-sm text-slate-600 
                file:mr-4 file:py-2 file:px-4 
                file:rounded-lg file:border-0 
@@ -147,6 +225,11 @@ export default function Tutor() {
                file:bg-blue-600 file:text-white 
                hover:file:bg-blue-700 cursor-pointer"
               />
+              {errorUpload && (
+                <p className="text-red-600 text-sm mt-2 font-medium">
+                  {errorUpload}
+                </p>
+              )}
             </div>
 
             <textarea
@@ -155,6 +238,7 @@ export default function Tutor() {
               placeholder="Pega aquí un texto para generar preguntas…"
               value={text}
               onChange={(e) => setText(e.target.value)}
+              data-testid="tutor-text-area" // 👈 3. ID al área de texto
             />
           </div>
 
@@ -169,6 +253,7 @@ export default function Tutor() {
                 max={10}
                 value={count}
                 onChange={(e) => setCount(Number(e.target.value))}
+                data-testid="tutor-count-input" // 👈 4. ID al input numérico
                 className="w-20 rounded-lg border border-slate-300 p-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent"
               />
             </div>
@@ -176,10 +261,11 @@ export default function Tutor() {
             <div className="flex flex-wrap gap-2">
               <Button
                 onClick={handleGenerate}
-                disabled={loading}
+                disabled={loadingGenerate}
+                data-testid="tutor-btn-generate" // 👈 5. ID al botón generar
                 className="min-w-[160px] bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 shadow-sm"
               >
-                {loading ? (
+                {loadingGenerate ? (
                   <span className="flex items-center gap-2">
                     <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
                     ⏳ Generando...
@@ -195,6 +281,7 @@ export default function Tutor() {
                 <Button
                   variant="secondary"
                   onClick={handleVerify}
+                  data-testid="tutor-btn-verify" // 👈 6. ID al botón verificar
                   className="bg-gradient-to-r from-green-600 to-green-700 hover:from-green-700 hover:to-green-800 text-white shadow-sm"
                 >
                   ✅ Verificar respuestas
@@ -203,16 +290,20 @@ export default function Tutor() {
             </div>
           </div>
 
-          {error && (
+          {errorGenerate && (
             <div className="p-3 bg-red-50 border border-red-200 rounded-lg">
-              <p className="text-red-700 text-sm font-medium">{error}</p>
+              <p className="text-red-700 text-sm font-medium">
+                {errorGenerate}
+              </p>
             </div>
           )}
         </div>
       </Card>
 
       {results.length > 0 && (
-        <div className="space-y-4">
+        <div className="space-y-4" data-testid="tutor-results-list">
+          {" "}
+          {/* 👈 7. ID al contenedor de lista */}
           {results.map((qa, i) => (
             <Card
               key={i}
@@ -229,24 +320,33 @@ export default function Tutor() {
                 </div>
 
                 <ul className="space-y-2 ml-9">
-                  {qa.answers.map((ans, j) => (
-                    <li
-                      key={j}
-                      className="flex items-center gap-3 p-2 rounded-lg hover:bg-slate-50 transition-colors duration-150"
-                    >
-                      <input
-                        type="radio"
-                        name={`question-${i}`}
-                        value={j}
-                        checked={selectedAnswers[i] === j}
-                        onChange={() =>
-                          setSelectedAnswers((prev) => ({ ...prev, [i]: j }))
-                        }
-                        className="w-4 h-4 text-blue-600 focus:ring-blue-500"
-                      />
-                      <span className="text-slate-700 flex-1">{ans.text}</span>
+                  {Array.isArray(qa.answers) ? (
+                    qa.answers.map((ans, j) => (
+                      <li
+                        key={j}
+                        className="flex items-center gap-3 p-2 rounded-lg hover:bg-slate-50 transition-colors duración-150"
+                      >
+                        <input
+                          type="radio"
+                          name={`question-${i}`}
+                          value={j}
+                          checked={selectedAnswers[i] === j}
+                          onChange={() =>
+                            setSelectedAnswers((prev) => ({ ...prev, [i]: j }))
+                          }
+                          data-testid={`q${i}-opt${j}`} // 👈 8. ID dinámico para las opciones
+                          className="w-4 h-4 text-blue-600 focus:ring-blue-500"
+                        />
+                        <span className="text-slate-700 flex-1">
+                          {ans.text}
+                        </span>
+                      </li>
+                    ))
+                  ) : (
+                    <li className="text-xs text-red-500">
+                      Formato de respuestas inválido para esta pregunta.
                     </li>
-                  ))}
+                  )}
                 </ul>
 
                 {feedback[i] && (
@@ -273,6 +373,7 @@ export default function Tutor() {
           ))}
         </div>
       )}
+
       {rawOutput && (
         <Card className="bg-slate-900 text-slate-100 border-0">
           <h3 className="text-lg font-semibold mb-3 text-slate-100">
@@ -285,9 +386,12 @@ export default function Tutor() {
       )}
 
       {score !== null && (
-        <Card className="p-4 border-l-4 border-l-purple-500 bg-purple-50">
+        <Card
+          className="p-4 border-l-4 border-l-purple-500 bg-purple-50"
+          data-testid="tutor-mc-score"
+        >
           <h3 className="text-lg font-semibold text-purple-700">
-            🎯 Tu puntaje: {score} / 20
+            🎯 Tu puntaje en alternativas: {score} / 20
           </h3>
         </Card>
       )}
@@ -296,37 +400,150 @@ export default function Tutor() {
         <label className="block text-sm font-semibold text-slate-700 mb-2">
           📝 Escribe una reflexión crítica
         </label>
+
         <textarea
           rows={4}
-          className="w-full rounded-xl border border-slate-300 bg-white p-4 text-sm focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all duration-200 resize-none shadow-sm"
+          className="w-full rounded-xl border border-slate-300 bg-white p-4 text-sm focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent transición-all duración-200 resize-none shadow-sm"
           placeholder="Escribe aquí tu resumen..."
           value={openAnswer}
           onChange={(e) => setOpenAnswer(e.target.value)}
+          data-testid="tutor-reflection-area"
         />
+
+        <div className="flex justify-between items-center mt-2">
+          <p
+            className={`text-sm font-medium ${
+              openAnswer.trim().length === 0
+                ? "text-slate-400"
+                : openAnswer.trim().length < 50
+                ? "text-orange-500"
+                : "text-green-600"
+            }`}
+          >
+            {openAnswer.trim().length} / 50 caracteres mínimos
+          </p>
+          {openAnswer.trim().length > 0 && openAnswer.trim().length < 50 && (
+            <p className="text-orange-500 text-xs font-medium">
+              ⚠️ Escribe un poco más para una evaluación precisa.
+            </p>
+          )}
+        </div>
 
         <Button
           onClick={async () => {
-            const resp = await fetch("/api/evaluate-open", {
-              method: "POST",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({ text, studentAnswer: openAnswer }),
-            });
-            const data = await resp.json();
-            setOpenEval(data);
+            setErrorEvaluate("");
+            setOpenEval(null);
+            setSavingResult("idle");
+            setSaveError("");
+
+            if (!text.trim()) {
+              setErrorEvaluate(
+                "⚠️ Debes ingresar o subir un texto base antes de evaluar."
+              );
+              return;
+            }
+
+            if (!openAnswer.trim()) {
+              setErrorEvaluate(
+                "⚠️ Debes escribir tu reflexión antes de evaluar."
+              );
+              return;
+            }
+
+            if (openAnswer.trim().length < 50) {
+              setErrorEvaluate(
+                "⚠️ Tu reflexión debe tener al menos 50 caracteres para una evaluación adecuada."
+              );
+              return;
+            }
+
+            if (score === null) {
+              setErrorEvaluate(
+                "⚠️ Primero responde y verifica las preguntas de opción múltiple para calcular tu puntaje."
+              );
+              return;
+            }
+
+            setLoadingEvaluate(true);
+
+            try {
+              const resp = await fetch("/api/evaluate-open", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ text, studentAnswer: openAnswer }),
+              });
+
+              const data = await resp.json();
+
+              if (!resp.ok) {
+                throw new Error(data.error || "Error al evaluar resumen.");
+              }
+
+              setOpenEval(data);
+
+              // 💾 Una vez que tenemos openEval y score, guardamos en backend
+              await saveReadingResult(score, data.score);
+            } catch (err: any) {
+              setErrorEvaluate(err.message || "Error desconocido al evaluar.");
+            } finally {
+              setLoadingEvaluate(false);
+            }
           }}
-          disabled={!openAnswer.trim()}
-          className="mt-3 min-w-[160px] bg-gradient-to-r from-purple-600 to-purple-700 hover:from-purple-700 hover:to-purple-800 text-white shadow-sm"
+          disabled={loadingEvaluate || openAnswer.trim().length < 50}
+          data-testid="tutor-btn-eval-save" // 👈 11. ID al botón de evaluar/guardar
+          className={`mt-3 min-w-[160px] ${
+            openAnswer.trim().length < 50
+              ? "bg-gray-400 cursor-not-allowed"
+              : "bg-gradient-to-r from-purple-600 to-purple-700 hover:from-purple-700 hover:to-purple-800"
+          } text-white shadow-sm transición-all duración-200`}
         >
-          📖 Evaluar resumen
+          {loadingEvaluate ? (
+            <span className="flex items-center gap-2">
+              <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+              Evaluando...
+            </span>
+          ) : (
+            "📖 Evaluar resumen y guardar"
+          )}
         </Button>
 
+        {errorEvaluate && (
+          <div className="mt-3 p-3 bg-red-50 border border-red-200 rounded-lg">
+            <p className="text-red-700 text-sm font-medium">{errorEvaluate}</p>
+          </div>
+        )}
+
         {openEval && (
-          <div className="mt-3 p-4 border-l-4 border-l-purple-500 bg-purple-50 rounded-lg">
+          <div
+            className="mt-3 p-4 border-l-4 border-l-purple-500 bg-purple-50 rounded-lg"
+            data-testid="tutor-final-eval"
+          >
             <p className="font-semibold text-purple-700 text-lg">
-              🎯 Puntaje: {openEval.score} / 20
+              🎯 Puntaje resumen: {openEval.score} / 20
             </p>
             <p className="text-slate-700 mt-2">{openEval.feedback}</p>
           </div>
+        )}
+
+        {/* Estado de guardado en backend */}
+        {savingResult === "saving" && (
+          <p className="mt-2 text-sm text-slate-600">
+            💾 Guardando tu resultado y actualizando tu progreso...
+          </p>
+        )}
+        {savingResult === "saved" && (
+          <p
+            className="mt-2 text-sm text-green-600 font-medium"
+            data-testid="tutor-save-success"
+          >
+            ✅ Resultado guardado correctamente. Tu progreso ha sido
+            actualizado.
+          </p>
+        )}
+        {savingResult === "error" && (
+          <p className="mt-2 text-sm text-red-600 font-medium">
+            ⚠️ No se pudo guardar tu resultado: {saveError}
+          </p>
         )}
       </div>
     </div>
