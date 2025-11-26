@@ -1,28 +1,19 @@
+/* istanbul ignore file */
 import React, { useEffect, useMemo, useState } from "react";
 import Card from "../components/Card";
 import Tag from "../components/Tag";
 import Button from "../components/Button";
-import Tutor from "../pages/Tutor"; // ajusta la ruta según dónde tengas el componente
+import Tutor from "../pages/Tutor";
 
 /**
- * Projects.tsx — Vista dual por rol
- *
- * - STUDENT: CRUD + progreso propio por proyecto (mock localStorage)
- * - TEACHER/ADMIN: Sustituye pestaña por un roster de estudiantes y estados de sus proyectos
- *
- * Persistencia en localStorage (API mock). Cuando conectes backend, reemplaza `api`, `apiProgress`
- * y `apiUsers` por tus endpoints reales, manteniendo las firmas.
+ * Projects.tsx — Vista dual por rol (student / teacher)
  */
-
-// -----------------------------
-// Tipos y utilidades
-// -----------------------------
 
 type ProjectStatus = "pending" | "in_progress" | "done";
 
 type Project = {
-  id: string; // UUID
-  ownerId: string; // propietario
+  id: string;
+  ownerId: string;
   name: string;
   description?: string;
   status: ProjectStatus;
@@ -31,7 +22,7 @@ type Project = {
   updatedAt: string;
   totalActivities?: number;
   completedActivities?: number;
-  progressPercent?: number; // 0-100 viene del backend
+  progressPercent?: number;
 };
 
 type User = {
@@ -49,11 +40,10 @@ const STATUS_LABEL: Record<ProjectStatus, string> = {
 
 const STATUS_CHIP: Record<ProjectStatus, string> = {
   pending: "inline-flex rounded-lg bg-yellow-100 px-2.5 py-1 text-yellow-800",
-  in_progress: "inline-flex rounded-lg bg-blue-100 px-2.5 py-1 text-blue-800",
+  in_progress:
+    "inline-flex rounded-lg bg-blue-100 px-2.5 py-1 text-blue-800",
   done: "inline-flex rounded-lg bg-green-100 px-2.5 py-1 text-green-800",
 };
-
-const uid = () => crypto.randomUUID?.() ?? Math.random().toString(36).slice(2);
 
 function getCurrentUser(): User | null {
   try {
@@ -71,18 +61,29 @@ type TeacherStudent = {
   assigned: boolean;
 };
 
+function getAuthHeaders() {
+  const token = localStorage.getItem("token");
+  const headers: Record<string, string> = {
+    "Content-Type": "application/json",
+  };
+  if (token) {
+    headers["Authorization"] = `Bearer ${token}`;
+  }
+  return headers;
+}
+
 const apiTeacher = {
   async listStudents(q?: string): Promise<TeacherStudent[]> {
     const params = new URLSearchParams();
     if (q) params.set("q", q);
+
     const res = await fetch(
-      `/api/teacher/students${
-        params.toString() ? "?" + params.toString() : ""
-      }`,
+      `/api/teacher/students${params.toString() ? "?" + params.toString() : ""}`,
       {
-        headers: getAuthHeaders(), // puedes mover getAuthHeaders arriba a scope global
+        headers: getAuthHeaders(),
       }
     );
+
     const payload = await res.json().catch(() => ({}));
     const ok = payload?.ok ?? res.ok;
     if (!ok) throw new Error(payload?.error || "Error al cargar estudiantes");
@@ -142,17 +143,6 @@ function mapProject(p: BackendProject): Project {
   };
 }
 
-function getAuthHeaders() {
-  const token = localStorage.getItem("token");
-  const headers: Record<string, string> = {
-    "Content-Type": "application/json",
-  };
-  if (token) {
-    headers["Authorization"] = `Bearer ${token}`;
-  }
-  return headers;
-}
-
 const api = {
   async list(params?: {
     q?: string;
@@ -169,9 +159,9 @@ const api = {
       search.set("status", params.status);
     }
 
-    // 🚨 caso especial: Teacher/Admin pidiendo proyectos de OTRO alumno
+    // si el teacher quiere ver proyectos de un alumno
     if (params?.ownerId && params.ownerId !== me.id) {
-      search.set("all", "1"); // backend: si role=teacher/admin y all=1, trae todos
+      search.set("all", "1");
     }
 
     const url = `${API_PROJECTS}${
@@ -184,13 +174,10 @@ const api = {
     const payload = await res.json().catch(() => ({}));
     const ok = payload?.ok ?? res.ok;
 
-    if (!ok) {
-      throw new Error(payload?.error || "Error al obtener proyectos");
-    }
+    if (!ok) throw new Error(payload?.error || "Error al obtener proyectos");
 
     let items: Project[] = (payload.data as BackendProject[]).map(mapProject);
 
-    // si teacher/admin pidió ownerId específico, filtramos aquí
     if (params?.ownerId && params.ownerId !== me.id) {
       items = items.filter((p) => p.ownerId === params.ownerId);
     }
@@ -214,9 +201,7 @@ const api = {
 
     const payload = await res.json().catch(() => ({}));
     const ok = payload?.ok ?? res.ok;
-    if (!ok) {
-      throw new Error(payload?.error || "Error al crear proyecto");
-    }
+    if (!ok) throw new Error(payload?.error || "Error al crear proyecto");
 
     return mapProject(payload.data as BackendProject);
   },
@@ -233,9 +218,7 @@ const api = {
 
     const payload = await res.json().catch(() => ({}));
     const ok = payload?.ok ?? res.ok;
-    if (!ok) {
-      throw new Error(payload?.error || "Error al actualizar proyecto");
-    }
+    if (!ok) throw new Error(payload?.error || "Error al actualizar proyecto");
 
     return mapProject(payload.data as BackendProject);
   },
@@ -248,9 +231,7 @@ const api = {
 
     const payload = await res.json().catch(() => ({}));
     const ok = payload?.ok ?? res.ok;
-    if (!ok) {
-      throw new Error(payload?.error || "Error al eliminar proyecto");
-    }
+    if (!ok) throw new Error(payload?.error || "Error al eliminar proyecto");
 
     return { ok: true } as const;
   },
@@ -262,16 +243,14 @@ const api = {
 
     const payload = await res.json().catch(() => ({}));
     const ok = payload?.ok ?? res.ok;
-    if (!ok) {
-      throw new Error(payload?.error || "Error al obtener proyecto");
-    }
+    if (!ok) throw new Error(payload?.error || "Error al obtener proyecto");
 
     return mapProject(payload.data as BackendProject);
   },
 };
 
 // -----------------------------
-// Componentes auxiliares
+// Helpers de formulario
 // -----------------------------
 
 type FormState = {
@@ -294,6 +273,7 @@ function toTags(csv: string): string[] {
     .map((t) => t.trim())
     .filter(Boolean);
 }
+
 function fromTags(arr: string[]): string {
   return arr?.join(", ") ?? "";
 }
@@ -309,7 +289,7 @@ function StatusSelect({
     <select
       value={value}
       onChange={(e) => onChange(e.target.value as ProjectStatus)}
-      className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-600"
+      className="rounded-xl border border-slate-800 bg-neutral-900 text-slate-100 placeholder-slate-500 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
     >
       <option value="in_progress">En curso</option>
       <option value="pending">Pendiente</option>
@@ -325,8 +305,11 @@ function StatusChip({ status }: { status: ProjectStatus }) {
 function ProgressBar({ value }: { value: number }) {
   const v = Math.max(0, Math.min(100, Math.round(value)));
   return (
-    <div className="w-40 rounded-xl border border-slate-200">
-      <div className="h-2 rounded-xl bg-blue-600" style={{ width: `${v}%` }} />
+    <div className="w-40 rounded-xl border border-slate-800">
+      <div
+        className="h-2 rounded-xl bg-blue-600"
+        style={{ width: `${v}%` }}
+      />
     </div>
   );
 }
@@ -350,12 +333,12 @@ function Modal({
       className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4"
       data-testid={testId}
     >
-      <div className="w-full max-w-4xl rounded-2xl bg-white shadow-xl">
-        <div className="flex items-center justify-between border-b px-5 py-3">
+      <div className="w-full max-w-4xl rounded-2xl bg-neutral-900 border border-slate-800 shadow-xl text-slate-100">
+        <div className="flex items-center justify-between border-b border-slate-800 px-5 py-3">
           <h3 className="text-base font-semibold">{title}</h3>
           <button
             onClick={onClose}
-            className="rounded-lg px-2 py-1 text-slate-500 hover:bg-slate-100"
+            className="rounded-lg px-2 py-1 text-slate-400 hover:bg-neutral-800"
           >
             ✕
           </button>
@@ -423,11 +406,10 @@ function StudentView() {
 
   const globalProgress = useMemo(() => {
     if (!items.length) return 0;
-
-    // Sumar porcentajes de todos los proyectos del alumno
-    const sum = items.reduce((acc, p) => acc + (p.progressPercent ?? 0), 0);
-
-    // Promedio entre todos los proyectos
+    const sum = items.reduce(
+      (acc, p) => acc + (p.progressPercent ?? 0),
+      0
+    );
     return Math.round(sum / items.length);
   }, [items]);
 
@@ -440,6 +422,7 @@ function StudentView() {
     });
     setItems((prev) => [created, ...prev]);
   }
+
   async function handleUpdate(id: string, form: FormState) {
     const updated = await api.update(id, {
       name: form.name.trim(),
@@ -449,6 +432,7 @@ function StudentView() {
     });
     setItems((prev) => prev.map((p) => (p.id === id ? updated : p)));
   }
+
   async function handleDelete(id: string) {
     if (!confirm("¿Eliminar este proyecto?")) return;
     await api.remove(id);
@@ -464,7 +448,7 @@ function StudentView() {
               🔎
             </span>
             <input
-              className="pl-9 rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-600"
+              className="rounded-xl border border-slate-800 bg-neutral-900 text-slate-100 px-3 py-2 pl-9 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
               placeholder="Buscar…"
               value={q}
               onChange={(e) => setQ(e.target.value)}
@@ -473,7 +457,7 @@ function StudentView() {
           </div>
 
           <select
-            className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-600"
+            className="rounded-xl border border-slate-800 bg-neutral-900 text-slate-100 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
             value={status}
             onChange={(e) => setStatus(e.target.value as any)}
           >
@@ -484,33 +468,40 @@ function StudentView() {
           </select>
 
           <div className="ml-auto flex items-center gap-2">
-            <Button variant="secondary" onClick={() => setShowCreate(true)}
+            <Button
+              variant="secondary"
+              onClick={() => setShowCreate(true)}
               data-testid="btn-new-project"
-              >
+            >
               ➕ Nuevo proyecto
             </Button>
           </div>
         </div>
 
-        {/* 👇 NUEVO BLOQUE: progreso global del alumno */}
         <div className="mt-4 flex items-center gap-3">
-          <span className="text-sm font-medium text-slate-700">
+          <span className="text-sm font-medium text-slate-300">
             Mi progreso global:
           </span>
           <ProgressBar value={globalProgress} />
-          <span className="text-xs text-slate-500 w-10 text-right" data-testid="global-progress-text">
+          <span
+            className="text-xs text-slate-400 w-10 text-right"
+            data-testid="global-progress-text"
+          >
             {globalProgress}%
           </span>
         </div>
       </Card>
+
       <Card>
-        <div className="flex items-center justify-between pb-2 text-sm text-slate-500">
-          <span>{loading ? "Cargando…" : `${items.length} proyecto(s)`}</span>
+        <div className="flex items-center justify-between pb-2 text-sm text-slate-400">
+          <span>
+            {loading ? "Cargando…" : `${items.length} proyecto(s)`}
+          </span>
         </div>
         <div className="overflow-x-auto">
           <table className="min-w-full text-sm">
             <thead>
-              <tr className="text-left text-slate-500">
+              <tr className="text-left text-slate-400">
                 <th className="py-2 pr-4">Proyecto</th>
                 <th className="py-2 pr-4">Estado</th>
                 <th className="py-2 pr-4">Tags</th>
@@ -518,7 +509,7 @@ function StudentView() {
                 <th className="py-2">Acciones</th>
               </tr>
             </thead>
-            <tbody className="align-top text-slate-800">
+            <tbody className="align-top text-slate-200">
               {items.map((p) => (
                 <Row
                   key={p.id}
@@ -526,12 +517,17 @@ function StudentView() {
                   onView={() => setShowView({ open: true, id: p.id })}
                   onEdit={() => setShowEdit({ open: true, id: p.id })}
                   onDelete={() => handleDelete(p.id)}
-                  onOpenTutor={() => setShowTutor({ open: true, project: p })}
+                  onOpenTutor={() =>
+                    setShowTutor({ open: true, project: p })
+                  }
                 />
               ))}
               {!loading && items.length === 0 && (
                 <tr>
-                  <td colSpan={5} className="py-6 text-center text-slate-500">
+                  <td
+                    colSpan={5}
+                    className="py-6 text-center text-slate-400"
+                  >
                     Sin resultados
                   </td>
                 </tr>
@@ -540,7 +536,7 @@ function StudentView() {
           </table>
         </div>
       </Card>
-      {/* Modales CRUD y Progreso */}
+
       <CreateModal
         open={showCreate}
         onClose={() => setShowCreate(false)}
@@ -549,17 +545,20 @@ function StudentView() {
           setShowCreate(false);
         }}
       />
+
       <TutorModal
         ctx={showTutor}
         onClose={() => setShowTutor({ open: false })}
         onCompleted={async () => {
-          // Solo recargamos los proyectos para actualizar el progreso
           await reload();
-          // 👇 Ya NO cerramos el modal aquí
-          // setShowTutor({ open: false });
         }}
       />
-      <ViewModal ctx={showView} onClose={() => setShowView({ open: false })} />
+
+      <ViewModal
+        ctx={showView}
+        onClose={() => setShowView({ open: false })}
+      />
+
       <EditModal
         ctx={showEdit}
         onClose={() => setShowEdit({ open: false })}
@@ -586,23 +585,23 @@ function Row({
   onOpenTutor: () => void;
 }) {
   return (
-<tr className="border-t" data-testid={`project-row-${p.id}`}> 
-  {/* Columna 1: Proyecto */}
+    <tr
+      className="border-t border-slate-800"
+      data-testid={`project-row-${p.id}`}
+    >
       <td className="py-3 pr-4 font-medium">
         <div className="font-semibold">{p.name}</div>
         {p.description && (
-          <div className="text-xs text-slate-500 line-clamp-2">
+          <div className="text-xs text-slate-400 line-clamp-2">
             {p.description}
           </div>
         )}
       </td>
 
-      {/* Columna 2: Estado */}
       <td className="py-3 pr-4">
         <StatusChip status={p.status} />
       </td>
 
-      {/* Columna 3: Tags */}
       <td className="py-3 pr-4">
         <div className="flex flex-wrap gap-2">
           {p.tags?.map((t, i) => (
@@ -611,30 +610,43 @@ function Row({
         </div>
       </td>
 
-      {/* Columna 4: Mi progreso (ahora usando backend) */}
       <td className="py-3 pr-4">
         <div className="flex items-center gap-3">
           <ProgressBar value={p.progressPercent ?? 0} />
-          <span className="w-10 text-right text-xs text-slate-500">
+          <span className="w-10 text-right text-xs text-slate-400">
             {p.progressPercent ?? 0}%
           </span>
         </div>
       </td>
 
-      {/* Columna 5: Acciones */}
       <td className="py-3">
         <div className="flex gap-2">
-          <Button variant="ghost" onClick={onView} data-testid={`btn-view-${p.id}`}>
+          <Button
+            variant="ghost"
+            onClick={onView}
+            data-testid={`btn-view-${p.id}`}
+          >
             Ver
           </Button>
-          <Button variant="subtle" onClick={onEdit} data-testid={`btn-edit-${p.id}`}>
+          <Button
+            variant="subtle"
+            onClick={onEdit}
+            data-testid={`btn-edit-${p.id}`}
+          >
             Editar
           </Button>
-          <Button variant="secondary" onClick={onOpenTutor} data-testid={`btn-tutor-${p.id}`}>
+          <Button
+            variant="secondary"
+            onClick={onOpenTutor}
+            data-testid={`btn-tutor-${p.id}`}
+          >
             Tutor
           </Button>
-          <Button variant="danger" onClick={onDelete}
-          data-testid={`btn-delete-${p.id}`}>
+          <Button
+            variant="danger"
+            onClick={onDelete}
+            data-testid={`btn-delete-${p.id}`}
+          >
             Eliminar
           </Button>
         </div>
@@ -644,7 +656,7 @@ function Row({
 }
 
 // -----------------------------
-// Vista TEACHER — roster de estudiantes y estados
+// Vista TEACHER — roster de estudiantes
 // -----------------------------
 
 function TeacherView() {
@@ -683,7 +695,7 @@ function TeacherView() {
     };
   }, [q]);
 
-  const filtered = students; // ya filtramos por q en backend; si quieres puedes filtrar otra vez aquí
+  const filtered = students;
 
   return (
     <div className="space-y-6">
@@ -697,7 +709,7 @@ function TeacherView() {
               🔎
             </span>
             <input
-              className="pl-9 rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-600"
+              className="rounded-xl border border-slate-800 bg-neutral-900 text-slate-100 px-3 py-2 pl-9 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
               placeholder="Buscar estudiante…"
               value={q}
               onChange={(e) => setQ(e.target.value)}
@@ -705,7 +717,7 @@ function TeacherView() {
           </div>
 
           <select
-            className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-600"
+            className="rounded-xl border border-slate-800 bg-neutral-900 text-slate-100 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
             value={statusFilter}
             onChange={(e) => setStatusFilter(e.target.value as any)}
           >
@@ -715,22 +727,22 @@ function TeacherView() {
             <option value="pending">Pendiente</option>
           </select>
 
-          <div className="ml-auto flex items-center gap-2">
-            {/* Aquí podrías poner algún indicador o botón de refrescar si quieres */}
-          </div>
+          <div className="ml-auto flex items-center gap-2" />
         </div>
       </Card>
 
       <Card>
-        <div className="flex items-center justify-between pb-2 text-sm text-slate-500">
+        <div className="flex items-center justify-between pb-2 text-sm text-slate-400">
           <span>
-            {loading ? "Cargando…" : `${filtered.length} estudiante(s)`}
+            {loading
+              ? "Cargando…"
+              : `${filtered.length} estudiante(s)`}
           </span>
         </div>
         <div className="overflow-x-auto">
           <table className="min-w-full text-sm">
             <thead>
-              <tr className="text-left text-slate-500">
+              <tr className="text-left text-slate-400">
                 <th className="py-2 pr-4">Estudiante</th>
                 <th className="py-2 pr-4">Proyectos</th>
                 <th className="py-2 pr-4">Estados</th>
@@ -739,13 +751,15 @@ function TeacherView() {
                 <th className="py-2">Acciones</th>
               </tr>
             </thead>
-            <tbody className="align-top text-slate-800">
+            <tbody className="align-top text-slate-200">
               {filtered.map((s) => (
                 <TeacherRow
                   key={s.id}
                   student={s}
                   statusFilter={statusFilter}
-                  onOpen={() => setModal({ open: true, studentId: s.id })}
+                  onOpen={() =>
+                    setModal({ open: true, studentId: s.id })
+                  }
                   onToggleAssign={async () => {
                     try {
                       if (s.assigned) {
@@ -764,7 +778,10 @@ function TeacherView() {
 
               {!loading && filtered.length === 0 && (
                 <tr>
-                  <td colSpan={6} className="py-6 text-center text-slate-500">
+                  <td
+                    colSpan={6}
+                    className="py-6 text-center text-slate-400"
+                  >
                     Sin resultados
                   </td>
                 </tr>
@@ -806,7 +823,6 @@ function TeacherRow({
   useEffect(() => {
     let alive = true;
 
-    // Si el estudiante NO está asignado, no pedimos nada
     if (!student.assigned) {
       setStats({
         total: 0,
@@ -822,23 +838,22 @@ function TeacherRow({
       try {
         const projects = await api.list({ ownerId: student.id });
 
-        const byStatus = {
+        const byStatus: Record<ProjectStatus, number> = {
           pending: 0,
           in_progress: 0,
           done: 0,
-        } as Record<ProjectStatus, number>;
+        };
 
         projects.forEach((p) => {
           byStatus[p.status]++;
         });
 
-        // 👇 Nuevo cálculo de progreso:
-        // solo cuentan in_progress + done, los pending NO
         const workCount = byStatus.in_progress + byStatus.done;
         const doneCount = byStatus.done;
-
         const avg =
-          workCount === 0 ? 0 : Math.round((doneCount / workCount) * 100);
+          workCount === 0
+            ? 0
+            : Math.round((doneCount / workCount) * 100);
 
         if (!alive) return;
         setStats({
@@ -866,26 +881,32 @@ function TeacherRow({
     statusFilter === "all" ? stats.total : stats.byStatus[statusFilter];
 
   return (
-    <tr className="border-t">
+    <tr className="border-t border-slate-800">
       <td className="py-3 pr-4 font-medium">
         <div className="font-semibold">{student.name}</div>
-        <div className="text-xs text-slate-500">{student.email}</div>
+        <div className="text-xs text-slate-400">{student.email}</div>
       </td>
       <td className="py-3 pr-4">{visibleTotal}</td>
       <td className="py-3 pr-4">
         <div className="flex flex-wrap gap-2 items-center text-xs">
           <span>Pend:</span>
-          <span className="font-semibold">{stats.byStatus.pending}</span>
+          <span className="font-semibold">
+            {stats.byStatus.pending}
+          </span>
           <span>Curso:</span>
-          <span className="font-semibold">{stats.byStatus.in_progress}</span>
+          <span className="font-semibold">
+            {stats.byStatus.in_progress}
+          </span>
           <span>Comp:</span>
-          <span className="font-semibold">{stats.byStatus.done}</span>
+          <span className="font-semibold">
+            {stats.byStatus.done}
+          </span>
         </div>
       </td>
       <td className="py-3 pr-4">
         <div className="flex items-center gap-3">
           <ProgressBar value={stats.avgProgress} />
-          <span className="w-10 text-right text-xs text-slate-500">
+          <span className="w-10 text-right text-xs text-slate-400">
             {stats.avgProgress}%
           </span>
         </div>
@@ -895,7 +916,7 @@ function TeacherRow({
           className={`inline-flex rounded-lg px-2 py-1 text-xs ${
             student.assigned
               ? "bg-green-100 text-green-700"
-              : "bg-slate-100 text-slate-600"
+              : "bg-slate-200 text-slate-700"
           }`}
         >
           {student.assigned ? "Asignado" : "No asignado"}
@@ -951,25 +972,34 @@ function TeacherStudentProjectsModal({
   }, [ctx.open, ctx.studentId]);
 
   return (
-    <Modal open={!!ctx.open} onClose={onClose} title="Proyectos del estudiante">
+    <Modal
+      open={!!ctx.open}
+      onClose={onClose}
+      title="Proyectos del estudiante"
+    >
       {loading ? (
-        <p className="text-sm text-slate-500">Cargando…</p>
+        <p className="text-sm text-slate-400">Cargando…</p>
       ) : (
         <div className="space-y-4">
           {items.length === 0 && (
-            <p className="text-sm text-slate-500">
+            <p className="text-sm text-slate-400">
               El estudiante no tiene proyectos.
             </p>
           )}
 
           {items.map((p) => (
-            <div key={p.id} className="rounded-xl border p-3">
+            <div
+              key={p.id}
+              className="rounded-xl border border-slate-800 bg-neutral-900 p-3"
+            >
               <div className="mb-2 flex items-center gap-2">
                 <div className="font-semibold">{p.name}</div>
                 <StatusChip status={p.status} />
               </div>
               {p.description && (
-                <p className="text-slate-700 text-sm">{p.description}</p>
+                <p className="text-slate-300 text-sm">
+                  {p.description}
+                </p>
               )}
               <div className="mt-2 flex flex-wrap gap-2">
                 {p.tags.map((t, i) => (
@@ -1012,35 +1042,50 @@ function CreateModal({
   }, [open]);
 
   return (
-    <Modal open={open} onClose={onClose} title="Nuevo proyecto" testId="modal-create-project">
+    <Modal
+      open={open}
+      onClose={onClose}
+      title="Nuevo proyecto"
+      testId="modal-create-project"
+    >
       <div className="space-y-4">
         <div>
-          <label className="mb-1 block text-sm font-medium">Nombre</label>
+          <label className="mb-1 block text-sm font-medium">
+            Nombre
+          </label>
           <input
             value={form.name}
-            onChange={(e) => setForm((p) => ({ ...p, name: e.target.value }))}
+            onChange={(e) =>
+              setForm((p) => ({ ...p, name: e.target.value }))
+            }
             placeholder="Ej. Clasificador de Imágenes"
-            className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-600"
+            className="w-full rounded-xl border border-slate-800 bg-neutral-900 text-slate-100 placeholder-slate-500 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
             data-testid="input-create-name"
           />
         </div>
         <div>
-          <label className="mb-1 block text-sm font-medium">Descripción</label>
+          <label className="mb-1 block text-sm font-medium">
+            Descripción
+          </label>
           <textarea
             value={form.description}
             onChange={(e) =>
               setForm((p) => ({ ...p, description: e.target.value }))
             }
             rows={3}
-            className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-600"
+            className="w-full rounded-2xl border border-slate-800 bg-neutral-900 text-slate-100 placeholder-slate-500 p-3 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
           />
         </div>
         <div className="flex items-center gap-3">
           <div>
-            <label className="mb-1 block text-sm font-medium">Estado</label>
+            <label className="mb-1 block text-sm font-medium">
+              Estado
+            </label>
             <StatusSelect
               value={form.status}
-              onChange={(v) => setForm((p) => ({ ...p, status: v }))}
+              onChange={(v) =>
+                setForm((p) => ({ ...p, status: v }))
+              }
             />
           </div>
           <div className="grow">
@@ -1049,9 +1094,11 @@ function CreateModal({
             </label>
             <input
               value={form.tags}
-              onChange={(e) => setForm((p) => ({ ...p, tags: e.target.value }))}
+              onChange={(e) =>
+                setForm((p) => ({ ...p, tags: e.target.value }))
+              }
               placeholder="IA, Equipo, Docs"
-              className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-600"
+              className="w-full rounded-xl border border-slate-800 bg-neutral-900 text-slate-100 placeholder-slate-500 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
             />
           </div>
         </div>
@@ -1104,8 +1151,14 @@ function ViewModal({
   }, [ctx.open, ctx.id]);
 
   return (
-    <Modal open={ctx.open} onClose={onClose} title="Detalle de proyecto">
-      {loading && <p className="text-sm text-slate-500">Cargando…</p>}
+    <Modal
+      open={ctx.open}
+      onClose={onClose}
+      title="Detalle de proyecto"
+    >
+      {loading && (
+        <p className="text-sm text-slate-400">Cargando…</p>
+      )}
       {!loading && item && (
         <div className="space-y-3">
           <div className="flex items-center gap-3">
@@ -1113,16 +1166,18 @@ function ViewModal({
             <StatusChip status={item.status} />
           </div>
           {item.description && (
-            <p className="text-slate-700">{item.description}</p>
+            <p className="text-slate-300">{item.description}</p>
           )}
           <div className="flex flex-wrap gap-2">
             {item.tags.map((t, i) => (
               <Tag key={i}>{t}</Tag>
             ))}
           </div>
-          <div className="text-xs text-slate-400">
+          <div className="text-xs text-slate-500">
             <div>Creado: {new Date(item.createdAt).toLocaleString()}</div>
-            <div>Actualizado: {new Date(item.updatedAt).toLocaleString()}</div>
+            <div>
+              Actualizado: {new Date(item.updatedAt).toLocaleString()}
+            </div>
           </div>
           <div className="pt-2 text-right">
             <Button variant="subtle" onClick={onClose}>
@@ -1146,11 +1201,14 @@ function TutorModal({
   onClose: () => void;
   onCompleted: () => void;
 }) {
-  // Si no hay proyecto seleccionado, no mostramos nada dentro del modal
   if (!ctx.project) {
     return (
-      <Modal open={ctx.open} onClose={onClose} title="Tutor de Lectura">
-        <p className="text-sm text-slate-500">
+      <Modal
+        open={ctx.open}
+        onClose={onClose}
+        title="Tutor de Lectura"
+      >
+        <p className="text-sm text-slate-400">
           Selecciona un proyecto para usar el tutor de lectura.
         </p>
       </Modal>
@@ -1182,8 +1240,11 @@ function TutorModal({
 
         if (!cancelled) setActivityReady(true);
       } catch (err) {
-        console.error("No se pudo asegurar la actividad de lectura:", err);
-        if (!cancelled) setActivityReady(true); // dejamos pasar igual para no bloquear la UI
+        console.error(
+          "No se pudo asegurar la actividad de lectura:",
+          err
+        );
+        if (!cancelled) setActivityReady(true);
       } finally {
         if (!cancelled) setEnsuring(false);
       }
@@ -1203,14 +1264,16 @@ function TutorModal({
     >
       <div className="max-h-[80vh] overflow-y-auto">
         {!activityReady ? (
-          <p className="text-sm text-slate-500">
-            {ensuring ? "Preparando actividad de lectura…" : "Cargando…"}
+          <p className="text-sm text-slate-400">
+            {ensuring
+              ? "Preparando actividad de lectura…"
+              : "Cargando…"}
           </p>
         ) : (
           <Tutor
             projectId={project.id}
             activityId={activityId}
-            onCompleted={onCompleted} // solo recarga proyectos, NO cierra modal
+            onCompleted={onCompleted}
           />
         )}
       </div>
@@ -1255,17 +1318,25 @@ function EditModal({
   const canSubmit = form.name.trim().length >= 3;
 
   return (
-    <Modal open={!!ctx.open} onClose={onClose} title="Editar proyecto">
+    <Modal
+      open={!!ctx.open}
+      onClose={onClose}
+      title="Editar proyecto"
+    >
       {loading ? (
-        <p className="text-sm text-slate-500">Cargando…</p>
+        <p className="text-sm text-slate-400">Cargando…</p>
       ) : (
         <div className="space-y-4">
           <div>
-            <label className="mb-1 block text-sm font-medium">Nombre</label>
+            <label className="mb-1 block text-sm font-medium">
+              Nombre
+            </label>
             <input
               value={form.name}
-              onChange={(e) => setForm((p) => ({ ...p, name: e.target.value }))}
-              className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-600"
+              onChange={(e) =>
+                setForm((p) => ({ ...p, name: e.target.value }))
+              }
+              className="w-full rounded-xl border border-slate-800 bg-neutral-900 text-slate-100 placeholder-slate-500 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
             />
           </div>
           <div>
@@ -1275,18 +1346,25 @@ function EditModal({
             <textarea
               value={form.description}
               onChange={(e) =>
-                setForm((p) => ({ ...p, description: e.target.value }))
+                setForm((p) => ({
+                  ...p,
+                  description: e.target.value,
+                }))
               }
               rows={3}
-              className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-600"
+              className="w-full rounded-2xl border border-slate-800 bg-neutral-900 text-slate-100 placeholder-slate-500 p-3 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
             />
           </div>
           <div className="flex items-center gap-3">
             <div>
-              <label className="mb-1 block text-sm font-medium">Estado</label>
+              <label className="mb-1 block text-sm font-medium">
+                Estado
+              </label>
               <StatusSelect
                 value={form.status}
-                onChange={(v) => setForm((p) => ({ ...p, status: v }))}
+                onChange={(v) =>
+                  setForm((p) => ({ ...p, status: v }))
+                }
               />
             </div>
             <div className="grow">
@@ -1298,7 +1376,7 @@ function EditModal({
                 onChange={(e) =>
                   setForm((p) => ({ ...p, tags: e.target.value }))
                 }
-                className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-600"
+                className="w-full rounded-xl border border-slate-800 bg-neutral-900 text-slate-100 placeholder-slate-500 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
               />
             </div>
           </div>

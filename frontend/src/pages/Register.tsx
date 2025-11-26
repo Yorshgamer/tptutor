@@ -1,13 +1,13 @@
 import React, { useState, ChangeEvent, FormEvent } from "react";
-import { useNavigate } from "react-router-dom"; // Usamos hook para navegación más limpia
+import { useNavigate } from "react-router-dom";
 import Card from "../components/Card";
 import Button from "../components/Button";
 
-const ENDPOINT_REGISTER = "/api/auth/register";
+const ENDPOINT_REGISTER = "/api/users/register";
 
 type Msg = { type: "error" | "success" | ""; text: string };
 
-export default function Register() {
+function Register() {
   const [form, setForm] = useState({
     name: "",
     email: "",
@@ -15,20 +15,23 @@ export default function Register() {
     p2: "",
     role: "student",
   });
+
   const [loading, setLoading] = useState(false);
   const [msg, setMsg] = useState<Msg>({ type: "", text: "" });
   const navigate = useNavigate();
 
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
+  const handleChange = (
+    e: ChangeEvent<HTMLInputElement | HTMLSelectElement>
+  ) => {
     const { id, value } = e.target;
-    setForm(prev => ({ ...prev, [id]: value }));
+    setForm((prev) => ({ ...prev, [id]: value }));
   };
 
   const handleSubmit = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     setMsg({ type: "", text: "" });
 
-    // Validación Cliente
+    // Validación cliente
     if (form.p1 !== form.p2) {
       setMsg({ type: "error", text: "Las contraseñas no coinciden ⚠️" });
       return;
@@ -36,6 +39,7 @@ export default function Register() {
 
     try {
       setLoading(true);
+
       const res = await fetch(ENDPOINT_REGISTER, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -49,9 +53,8 @@ export default function Register() {
 
       const payload = await res.json().catch(() => ({}));
       const ok = payload?.ok ?? res.ok;
-      if (!ok) {
+      if (!ok)
         throw new Error(payload?.error || "Error al registrar usuario");
-      }
 
       const data = payload?.data ?? payload;
       const { token, user } = data || {};
@@ -63,20 +66,29 @@ export default function Register() {
 
       setMsg({
         type: "success",
-        text: token ? "Cuenta creada. Sesión iniciada ✅" : (payload?.message || "Usuario registrado ✅"),
+        text: "Usuario registrado con éxito 🎉",
       });
 
-      setForm({ name: "", email: "", p1: "", p2: "", role: "student" });
+      // limpiar form
+      setForm({
+        name: "",
+        email: "",
+        p1: "",
+        p2: "",
+        role: "student",
+      });
 
-      // Redirección suave si hay token
+      // Si hay token → login automático
       if (token) {
         setTimeout(() => {
           navigate("/tutor");
         }, 1500);
       }
-
     } catch (err: any) {
-      setMsg({ type: "error", text: err?.message || "No se pudo registrar" });
+      setMsg({
+        type: "error",
+        text: err?.message || "No se pudo registrar",
+      });
     } finally {
       setLoading(false);
     }
@@ -87,40 +99,55 @@ export default function Register() {
       <Card title="Crear cuenta">
         <form className="space-y-4" onSubmit={handleSubmit}>
           <div>
-            <label htmlFor="name" className="block text-sm font-medium mb-1">Nombre</label>
+            <label
+              htmlFor="name"
+              className="block text-sm font-medium mb-1 text-slate-200"
+            >
+              Nombre
+            </label>
             <input
               id="name"
               required
               value={form.name}
               onChange={handleChange}
-              data-testid="reg-name" // 👈 Selector
-              className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-600"
+              data-testid="reg-name"
+              className="w-full rounded-xl border border-slate-800 bg-neutral-900 text-slate-100 placeholder-slate-500 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-600"
               placeholder="Tu nombre"
             />
           </div>
 
           <div>
-            <label htmlFor="email" className="block text-sm font-medium mb-1">Correo</label>
+            <label
+              htmlFor="email"
+              className="block text-sm font-medium mb-1 text-slate-200"
+            >
+              Correo
+            </label>
             <input
               id="email"
               type="email"
               required
               value={form.email}
               onChange={handleChange}
-              data-testid="reg-email" // 👈 Selector
-              className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-600"
+              data-testid="reg-email"
+              className="w-full rounded-xl border border-slate-800 bg-neutral-900 text-slate-100 placeholder-slate-500 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-600"
               placeholder="tu@correo.com"
             />
           </div>
 
           <div>
-            <label htmlFor="role" className="block text-sm font-medium mb-1">Rol</label>
+            <label
+              htmlFor="role"
+              className="block text-sm font-medium mb-1 text-slate-200"
+            >
+              Rol
+            </label>
             <select
               id="role"
               value={form.role}
               onChange={handleChange}
-              data-testid="reg-role" // 👈 Selector
-              className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-600"
+              data-testid="reg-role"
+              className="w-full rounded-xl border border-slate-800 bg-neutral-900 text-slate-100 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-600"
             >
               <option value="student">Alumno</option>
               <option value="teacher">Profesor</option>
@@ -128,7 +155,12 @@ export default function Register() {
           </div>
 
           <div>
-            <label htmlFor="p1" className="block text-sm font-medium mb-1">Contraseña</label>
+            <label
+              htmlFor="p1"
+              className="block text-sm font-medium mb-1 text-slate-200"
+            >
+              Contraseña
+            </label>
             <input
               id="p1"
               type="password"
@@ -136,13 +168,18 @@ export default function Register() {
               minLength={6}
               value={form.p1}
               onChange={handleChange}
-              data-testid="reg-pass1" // 👈 Selector
-              className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-600"
+              data-testid="reg-pass1"
+              className="w-full rounded-xl border border-slate-800 bg-neutral-900 text-slate-100 placeholder-slate-500 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-600"
             />
           </div>
 
           <div>
-            <label htmlFor="p2" className="block text-sm font-medium mb-1">Confirmar contraseña</label>
+            <label
+              htmlFor="p2"
+              className="block text-sm font-medium mb-1 text-slate-200"
+            >
+              Confirmar contraseña
+            </label>
             <input
               id="p2"
               type="password"
@@ -150,27 +187,29 @@ export default function Register() {
               minLength={6}
               value={form.p2}
               onChange={handleChange}
-              data-testid="reg-pass2" // 👈 Selector
-              className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-600"
+              data-testid="reg-pass2"
+              className="w-full rounded-xl border border-slate-800 bg-neutral-900 text-slate-100 placeholder-slate-500 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-600"
             />
           </div>
 
           {msg.text && (
             <p
-              data-testid="reg-feedback" // 👈 Selector
-              className={`text-sm font-medium p-2 rounded ${
-                msg.type === "error" ? "bg-red-100 text-red-700" : "bg-green-100 text-green-700"
+              data-testid="reg-feedback"
+              className={`text-sm font-medium p-2 rounded border ${
+                msg.type === "error"
+                  ? "bg-red-900/40 text-red-200 border-red-700/70"
+                  : "bg-emerald-900/40 text-emerald-200 border-emerald-700/70"
               }`}
             >
               {msg.text}
             </p>
           )}
 
-          <Button 
-            type="submit" 
-            className="w-full" 
+          <Button
+            type="submit"
+            className="w-full"
             disabled={loading}
-            data-testid="reg-submit-btn" // 👈 Selector
+            data-testid="reg-submit-btn"
           >
             {loading ? "Registrando..." : "📝 Registrarme"}
           </Button>
@@ -179,3 +218,6 @@ export default function Register() {
     </div>
   );
 }
+
+export default Register;
+export { Register };

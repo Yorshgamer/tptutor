@@ -3,7 +3,7 @@ import React from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { useAuth } from "../auth/AuthContext";
 
-export default function Header({ onToggleSidebar }: { onToggleSidebar: () => void }) {
+function Header({ onToggleSidebar }: { onToggleSidebar: () => void }) {
   const { isAuthenticated, user, logout } = useAuth();
   const navigate = useNavigate();
 
@@ -13,8 +13,10 @@ export default function Header({ onToggleSidebar }: { onToggleSidebar: () => voi
   };
 
   return (
-    <header className="sticky top-0 z-20 bg-gradient-to-r from-blue-500 to-blue-700 text-white shadow-md">
+    <header className="sticky top-0 z-20 bg-gradient-to-r from-slate-900 to-black text-white shadow-lg">
       <div className="mx-auto max-w-6xl px-4 py-3 flex items-center justify-between">
+
+        {/* Botón menú móvil */}
         <button
           aria-label="Abrir menú"
           onClick={onToggleSidebar}
@@ -23,20 +25,22 @@ export default function Header({ onToggleSidebar }: { onToggleSidebar: () => voi
           ☰
         </button>
 
-        <Link to="/" className="font-semibold tracking-wide">
+        {/* Logo / Nombre del sistema */}
+        <Link to="/" className="font-semibold tracking-wide select-none">
           TP2 — Tutor de lectura crítica
         </Link>
 
-        {/* Right side */}
-        <div className="hidden md:flex items-center gap-3 text-sm opacity-90">
+        {/* Sección derecha */}
+        <div className="hidden md:flex items-center gap-3 text-sm text-slate-200">
           {isAuthenticated ? (
             <>
-              <span className="truncate max-w-[180px]">
-                Hola, <strong>{user?.name}</strong>
+              <span className="truncate max-w-[200px]">
+                Hola, <strong className="text-white">{user?.name}</strong>
               </span>
+
               <button
                 onClick={handleLogout}
-                className="ml-2 bg-white/10 hover:bg-white/20 px-3 py-1.5 rounded-lg"
+                className="ml-2 bg-white/10 hover:bg-white/20 px-3 py-1.5 rounded-lg transition"
                 title="Cerrar sesión"
               >
                 🔒 Cerrar sesión
@@ -44,10 +48,17 @@ export default function Header({ onToggleSidebar }: { onToggleSidebar: () => voi
             </>
           ) : (
             <>
-              <Link to="/login" className="bg-white/10 hover:bg-white/20 px-3 py-1.5 rounded-lg">
+              <Link
+                to="/login"
+                className="bg-white/10 hover:bg-white/20 px-3 py-1.5 rounded-lg transition"
+              >
                 Iniciar sesión
               </Link>
-              <Link to="/register" className="bg-white/10 hover:bg-white/20 px-3 py-1.5 rounded-lg">
+
+              <Link
+                to="/register"
+                className="bg-white/10 hover:bg-white/20 px-3 py-1.5 rounded-lg transition"
+              >
                 Crear cuenta
               </Link>
             </>
@@ -57,3 +68,6 @@ export default function Header({ onToggleSidebar }: { onToggleSidebar: () => voi
     </header>
   );
 }
+
+export default Header;
+export { Header };

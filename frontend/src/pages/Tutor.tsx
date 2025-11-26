@@ -101,7 +101,7 @@ export default function Tutor({
 
     results.forEach((qa, i) => {
       const selected = selectedAnswers[i];
-      if (selected !== null && qa.answers[selected]?.correct) {
+      if (selected !== null && selected !== undefined && qa.answers[selected]?.correct) {
         newFeedback[i] = "¡Correcto! 🎉 " + (qa.feedback || "");
         correctCount++;
       } else {
@@ -146,9 +146,9 @@ export default function Tutor({
     }
   };
 
-  // 🔐 helper para obtener token (ajusta según tu app)
+  // 🔐 helper para obtener token
   function getAuthToken() {
-    return localStorage.getItem("token"); // o donde lo guardes
+    return localStorage.getItem("token");
   }
 
   // 💾 Guardar resultado en backend y actualizar progreso
@@ -171,13 +171,13 @@ export default function Tutor({
           Authorization: `Bearer ${token}`,
         },
         body: JSON.stringify({
-          projectId, // viene del prop
+          projectId,
           activityId,
           mcScore, // puntaje de alternativas (0–20)
           openScore, // puntaje del resumen (0–20)
           reflection: openAnswer,
           rawText: text,
-          answers: selectedAnswers, // mapa de respuestas marcadas
+          answers: selectedAnswers,
         }),
       });
 
@@ -189,7 +189,7 @@ export default function Tutor({
       setSavingResult("saved");
       console.log("Resultado guardado:", data);
 
-      // 🔁 avisar al padre (Projects.tsx) para que recargue la lista
+      // avisar al padre (Projects.tsx) para que recargue la lista
       onCompleted?.();
     } catch (err: any) {
       setSavingResult("error");
@@ -206,27 +206,28 @@ export default function Tutor({
       >
         <div className="space-y-4">
           <div>
-            <label className="block text-sm font-semibold text-slate-700 mb-2">
+            <label className="block text-sm font-semibold text-slate-200 mb-2">
               Texto a analizar
             </label>
+
             <div>
-              <label className="block text-sm font-semibold text-slate-700 mb-2">
+              <label className="block text-sm font-semibold text-slate-200 mb-2">
                 Subir archivo Word (.docx)
               </label>
               <input
                 type="file"
                 accept=".docx"
                 onChange={handleFileUpload}
-                data-testid="tutor-file-input" // 👈 2. ID al input de archivo
-                className="block w-full text-sm text-slate-600 
-               file:mr-4 file:py-2 file:px-4 
-               file:rounded-lg file:border-0 
-               file:text-sm file:font-semibold 
-               file:bg-blue-600 file:text-white 
-               hover:file:bg-blue-700 cursor-pointer"
+                data-testid="tutor-file-input"
+                className="block w-full text-sm text-slate-300
+                file:mr-4 file:py-2 file:px-4
+                file:rounded-lg file:border-0
+                file:text-sm file:font-semibold
+                file:bg-blue-600 file:text-white
+                hover:file:bg-blue-700 cursor-pointer"
               />
               {errorUpload && (
-                <p className="text-red-600 text-sm mt-2 font-medium">
+                <p className="text-red-400 text-sm mt-2 font-medium">
                   {errorUpload}
                 </p>
               )}
@@ -234,17 +235,17 @@ export default function Tutor({
 
             <textarea
               rows={6}
-              className="w-full rounded-xl border border-slate-300 bg-white p-4 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 resize-none shadow-sm"
+              className="w-full rounded-2xl border border-slate-800 bg-neutral-900 text-slate-100 placeholder-slate-500 p-3 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
               placeholder="Pega aquí un texto para generar preguntas…"
               value={text}
               onChange={(e) => setText(e.target.value)}
-              data-testid="tutor-text-area" // 👈 3. ID al área de texto
+              data-testid="tutor-text-area"
             />
           </div>
 
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-3 bg-slate-50 rounded-lg">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-3 bg-neutral-900 border border-slate-800 rounded-lg">
             <div className="flex items-center gap-2">
-              <label className="text-sm font-medium text-slate-700">
+              <label className="text-sm font-medium text-slate-200">
                 Número de preguntas:
               </label>
               <input
@@ -253,8 +254,8 @@ export default function Tutor({
                 max={10}
                 value={count}
                 onChange={(e) => setCount(Number(e.target.value))}
-                data-testid="tutor-count-input" // 👈 4. ID al input numérico
-                className="w-20 rounded-lg border border-slate-300 p-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                data-testid="tutor-count-input"
+                className="w-20 rounded-lg border border-slate-800 bg-neutral-900 text-slate-100 p-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent"
               />
             </div>
 
@@ -262,7 +263,7 @@ export default function Tutor({
               <Button
                 onClick={handleGenerate}
                 disabled={loadingGenerate}
-                data-testid="tutor-btn-generate" // 👈 5. ID al botón generar
+                data-testid="tutor-btn-generate"
                 className="min-w-[160px] bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 shadow-sm"
               >
                 {loadingGenerate ? (
@@ -281,7 +282,7 @@ export default function Tutor({
                 <Button
                   variant="secondary"
                   onClick={handleVerify}
-                  data-testid="tutor-btn-verify" // 👈 6. ID al botón verificar
+                  data-testid="tutor-btn-verify"
                   className="bg-gradient-to-r from-green-600 to-green-700 hover:from-green-700 hover:to-green-800 text-white shadow-sm"
                 >
                   ✅ Verificar respuestas
@@ -291,8 +292,8 @@ export default function Tutor({
           </div>
 
           {errorGenerate && (
-            <div className="p-3 bg-red-50 border border-red-200 rounded-lg">
-              <p className="text-red-700 text-sm font-medium">
+            <div className="p-3 bg-red-950 border border-red-700 rounded-lg">
+              <p className="text-red-200 text-sm font-medium">
                 {errorGenerate}
               </p>
             </div>
@@ -302,8 +303,6 @@ export default function Tutor({
 
       {results.length > 0 && (
         <div className="space-y-4" data-testid="tutor-results-list">
-          {" "}
-          {/* 👈 7. ID al contenedor de lista */}
           {results.map((qa, i) => (
             <Card
               key={i}
@@ -311,10 +310,10 @@ export default function Tutor({
             >
               <div className="space-y-4">
                 <div className="flex items-start gap-3">
-                  <div className="w-6 h-6 bg-blue-100 text-blue-700 rounded-full flex items-center justify-center text-sm font-bold mt-0.5 flex-shrink-0">
+                  <div className="w-6 h-6 bg-blue-900 text-blue-100 rounded-full flex items-center justify-center text-sm font-bold mt-0.5 flex-shrink-0">
                     {i + 1}
                   </div>
-                  <p className="font-semibold text-slate-800 text-lg leading-relaxed">
+                  <p className="font-semibold text-slate-100 text-lg leading-relaxed">
                     {qa.question}
                   </p>
                 </div>
@@ -324,7 +323,7 @@ export default function Tutor({
                     qa.answers.map((ans, j) => (
                       <li
                         key={j}
-                        className="flex items-center gap-3 p-2 rounded-lg hover:bg-slate-50 transition-colors duración-150"
+                        className="flex items-center gap-3 p-2 rounded-lg hover:bg-neutral-800 transition-colors duration-150"
                       >
                         <input
                           type="radio"
@@ -332,12 +331,15 @@ export default function Tutor({
                           value={j}
                           checked={selectedAnswers[i] === j}
                           onChange={() =>
-                            setSelectedAnswers((prev) => ({ ...prev, [i]: j }))
+                            setSelectedAnswers((prev) => ({
+                              ...prev,
+                              [i]: j,
+                            }))
                           }
-                          data-testid={`q${i}-opt${j}`} // 👈 8. ID dinámico para las opciones
+                          data-testid={`q${i}-opt${j}`}
                           className="w-4 h-4 text-blue-600 focus:ring-blue-500"
                         />
-                        <span className="text-slate-700 flex-1">
+                        <span className="text-slate-200 flex-1">
                           {ans.text}
                         </span>
                       </li>
@@ -387,23 +389,23 @@ export default function Tutor({
 
       {score !== null && (
         <Card
-          className="p-4 border-l-4 border-l-purple-500 bg-purple-50"
+          className="p-4 border-l-4 border-l-purple-500 bg-purple-950 text-purple-100"
           data-testid="tutor-mc-score"
         >
-          <h3 className="text-lg font-semibold text-purple-700">
+          <h3 className="text-lg font-semibold">
             🎯 Tu puntaje en alternativas: {score} / 20
           </h3>
         </Card>
       )}
 
       <div className="mt-6">
-        <label className="block text-sm font-semibold text-slate-700 mb-2">
+        <label className="block text-sm font-semibold text-slate-200 mb-2">
           📝 Escribe una reflexión crítica
         </label>
 
         <textarea
           rows={4}
-          className="w-full rounded-xl border border-slate-300 bg-white p-4 text-sm focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent transición-all duración-200 resize-none shadow-sm"
+          className="w-full rounded-2xl border border-slate-800 bg-neutral-900 text-slate-100 placeholder-slate-500 p-3 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
           placeholder="Escribe aquí tu resumen..."
           value={openAnswer}
           onChange={(e) => setOpenAnswer(e.target.value)}
@@ -417,16 +419,17 @@ export default function Tutor({
                 ? "text-slate-400"
                 : openAnswer.trim().length < 50
                 ? "text-orange-500"
-                : "text-green-600"
+                : "text-green-400"
             }`}
           >
             {openAnswer.trim().length} / 50 caracteres mínimos
           </p>
-          {openAnswer.trim().length > 0 && openAnswer.trim().length < 50 && (
-            <p className="text-orange-500 text-xs font-medium">
-              ⚠️ Escribe un poco más para una evaluación precisa.
-            </p>
-          )}
+          {openAnswer.trim().length > 0 &&
+            openAnswer.trim().length < 50 && (
+              <p className="text-orange-400 text-xs font-medium">
+                ⚠️ Escribe un poco más para una evaluación precisa.
+              </p>
+            )}
         </div>
 
         <Button
@@ -476,7 +479,9 @@ export default function Tutor({
               const data = await resp.json();
 
               if (!resp.ok) {
-                throw new Error(data.error || "Error al evaluar resumen.");
+                throw new Error(
+                  data.error || "Error al evaluar resumen."
+                );
               }
 
               setOpenEval(data);
@@ -484,18 +489,20 @@ export default function Tutor({
               // 💾 Una vez que tenemos openEval y score, guardamos en backend
               await saveReadingResult(score, data.score);
             } catch (err: any) {
-              setErrorEvaluate(err.message || "Error desconocido al evaluar.");
+              setErrorEvaluate(
+                err.message || "Error desconocido al evaluar."
+              );
             } finally {
               setLoadingEvaluate(false);
             }
           }}
           disabled={loadingEvaluate || openAnswer.trim().length < 50}
-          data-testid="tutor-btn-eval-save" // 👈 11. ID al botón de evaluar/guardar
+          data-testid="tutor-btn-eval-save"
           className={`mt-3 min-w-[160px] ${
             openAnswer.trim().length < 50
               ? "bg-gray-400 cursor-not-allowed"
               : "bg-gradient-to-r from-purple-600 to-purple-700 hover:from-purple-700 hover:to-purple-800"
-          } text-white shadow-sm transición-all duración-200`}
+          } text-white shadow-sm transition-all duration-200`}
         >
           {loadingEvaluate ? (
             <span className="flex items-center gap-2">
@@ -508,40 +515,41 @@ export default function Tutor({
         </Button>
 
         {errorEvaluate && (
-          <div className="mt-3 p-3 bg-red-50 border border-red-200 rounded-lg">
-            <p className="text-red-700 text-sm font-medium">{errorEvaluate}</p>
+          <div className="mt-3 p-3 bg-red-950 border border-red-700 rounded-lg">
+            <p className="text-red-200 text-sm font-medium">
+              {errorEvaluate}
+            </p>
           </div>
         )}
 
         {openEval && (
           <div
-            className="mt-3 p-4 border-l-4 border-l-purple-500 bg-purple-50 rounded-lg"
+            className="mt-3 p-4 border-l-4 border-l-purple-500 bg-purple-950 rounded-lg"
             data-testid="tutor-final-eval"
           >
-            <p className="font-semibold text-purple-700 text-lg">
+            <p className="font-semibold text-purple-100 text-lg">
               🎯 Puntaje resumen: {openEval.score} / 20
             </p>
-            <p className="text-slate-700 mt-2">{openEval.feedback}</p>
+            <p className="text-slate-200 mt-2">{openEval.feedback}</p>
           </div>
         )}
 
         {/* Estado de guardado en backend */}
         {savingResult === "saving" && (
-          <p className="mt-2 text-sm text-slate-600">
+          <p className="mt-2 text-sm text-slate-300">
             💾 Guardando tu resultado y actualizando tu progreso...
           </p>
         )}
         {savingResult === "saved" && (
           <p
-            className="mt-2 text-sm text-green-600 font-medium"
+            className="mt-2 text-sm text-green-400 font-medium"
             data-testid="tutor-save-success"
           >
-            ✅ Resultado guardado correctamente. Tu progreso ha sido
-            actualizado.
+            ✅ Resultado guardado correctamente. Tu progreso ha sido actualizado.
           </p>
         )}
         {savingResult === "error" && (
-          <p className="mt-2 text-sm text-red-600 font-medium">
+          <p className="mt-2 text-sm text-red-400 font-medium">
             ⚠️ No se pudo guardar tu resultado: {saveError}
           </p>
         )}

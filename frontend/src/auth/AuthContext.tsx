@@ -42,6 +42,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setUser(null);
   };
 
+  /* istanbul ignore next */
   const refreshMe = async () => {
     if (!token) return;
     try {

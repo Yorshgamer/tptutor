@@ -1,15 +1,22 @@
 // __tests__/SideNav.unit.test.jsx
 import { render, screen } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
+import AuthProvider from "../src/auth/AuthProvider";
 import SideNav from "../src/components/SideNav";
 
 describe("✅ SideNav Component", () => {
-  test("renderiza todos los enlaces de navegación", () => {
-    render(
+  function renderWithProviders() {
+    return render(
       <MemoryRouter>
-        <SideNav />
+        <AuthProvider>
+          <SideNav />
+        </AuthProvider>
       </MemoryRouter>
     );
+  }
+
+  test("renderiza todos los enlaces de navegación", () => {
+    renderWithProviders();
 
     expect(screen.getByRole("link", { name: /inicio|home/i })).toBeInTheDocument();
     expect(screen.getByRole("link", { name: /proyectos/i })).toBeInTheDocument();
@@ -19,11 +26,7 @@ describe("✅ SideNav Component", () => {
   });
 
   test("tiene role navigation (accesible)", () => {
-    render(
-      <MemoryRouter>
-        <SideNav />
-      </MemoryRouter>
-    );
+    renderWithProviders();
     expect(screen.getByRole("navigation")).toBeInTheDocument();
   });
 });

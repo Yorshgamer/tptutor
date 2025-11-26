@@ -3,13 +3,16 @@ import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { MemoryRouter } from "react-router-dom";
 import Layout from "../src/components/Layout";
+import AuthProvider from "../src/auth/AuthProvider";
 
 // Mock mínimo del Header para exponer el botón accesible
 jest.mock("../src/components/Header", () => ({
   __esModule: true,
   default: ({ onToggleSidebar }) => (
     <header>
-      <button onClick={onToggleSidebar} aria-label="Abrir menú">Abrir menú</button>
+      <button onClick={onToggleSidebar} aria-label="Abrir menú">
+        Abrir menú
+      </button>
     </header>
   ),
 }));
@@ -24,9 +27,14 @@ function getMobileAside() {
 describe("✅ Layout Sidebar Integration", () => {
   test("abre el sidebar móvil al hacer clic en el botón del header", async () => {
     const user = userEvent.setup();
+
     render(
       <MemoryRouter>
-        <Layout><p>Contenido principal</p></Layout>
+        <AuthProvider>
+          <Layout>
+            <p>Contenido principal</p>
+          </Layout>
+        </AuthProvider>
       </MemoryRouter>
     );
 
@@ -40,36 +48,43 @@ describe("✅ Layout Sidebar Integration", () => {
 
     // Espera a que cambie la clase (animación/estado)
     await waitFor(() => {
-      expect(getMobileAside()).toHaveClass("translate-x-0");
-      expect(getMobileAside()).not.toHaveClass("-translate-x-full");
+      const aside = getMobileAside();
+      expect(aside).toHaveClass("translate-x-0");
+      expect(aside).not.toHaveClass("-translate-x-full");
     });
   });
 
   test("cierra el sidebar móvil al hacer clic en el overlay", async () => {
     const user = userEvent.setup();
+
     render(
       <MemoryRouter>
-        <Layout><p>Contenido principal</p></Layout>
+        <AuthProvider>
+          <Layout>
+            <p>Contenido principal</p>
+          </Layout>
+        </AuthProvider>
       </MemoryRouter>
     );
 
     // Abrir primero
     await user.click(screen.getByRole("button", { name: /abrir menú/i }));
     await waitFor(() => {
-      expect(getMobileAside()).toHaveClass("translate-x-0");
+      const aside = getMobileAside();
+      expect(aside).toHaveClass("translate-x-0");
     });
 
     // El overlay no tiene testid; se selecciona por aria-hidden
     const overlay = document.querySelector('[aria-hidden="true"]');
     expect(overlay).toBeTruthy();
 
-    // 👇 sin cast de TypeScript (archivo .jsx)
     await user.click(overlay);
 
     // Debe volver a ocultarse
     await waitFor(() => {
-      expect(getMobileAside()).toHaveClass("-translate-x-full");
-      expect(getMobileAside()).not.toHaveClass("translate-x-0");
+      const aside = getMobileAside();
+      expect(aside).toHaveClass("-translate-x-full");
+      expect(aside).not.toHaveClass("translate-x-0");
     });
   });
 });
