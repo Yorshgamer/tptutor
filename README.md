@@ -1,244 +1,178 @@
-🎓 TPTUTOR - Tutor Virtual de Lectura Crítica con IA
+# TPTUTOR 🎓
 
-TPTUTOR es una plataforma educativa Full-Stack diseñada para potenciar el pensamiento crítico mediante Inteligencia Artificial. El sistema genera preguntas automáticas, detecta sesgos argumentativos y gestiona flujos de aprendizaje automatizados.
+![MERN Stack](https://img.shields.io/badge/MERN-Fullstack-blue)
+![Docker](https://img.shields.io/badge/Docker-Enabled-2496ED)
+![Status](https://img.shields.io/badge/Status-Enabled-2496ED)
 
-📑 Tabla de Contenidos
-
-Descripción del Proyecto
-
-Arquitectura y Stack Tecnológico
-
-Requisitos Previos (Crítico)
-
-Instalación y Despliegue
-
-Estrategia de QA y Testing
-
-Estructura del Proyecto
-
-🚀 Descripción del Proyecto
+**TPTUTOR** es una aplicación web full-stack que funciona como un **tutor virtual de lectura crítica**.
 
 El sistema ayuda a estudiantes y docentes a desarrollar habilidades de pensamiento crítico mediante:
+- 🤖 **Generación automática de preguntas** sobre textos utilizando IA.
+- ⚖️ **Detección de sesgos y falacias** en los argumentos.
+- ⚡ **Automatización de flujos** (recordatorios y notificaciones) con n8n.
 
-Generación automática de preguntas sobre textos (PDF/Texto plano).
+---
 
-Detección de sesgos y falacias utilizando LLMs locales (Ollama).
+## 📋 Tabla de Contenidos
+1. [Descripción General](#descripción-general)
+2. [Objetivos](#objetivos)
+3. [Arquitectura](#arquitectura-del-sistema)
+4. [Tecnologías](#tecnologías-principales)
+5. [Pre-requisitos](#-pre-requisitos)
+6. [Instalación y Configuración](#-instalación-y-configuración)
+7. [Ejecución con Docker](#-ejecución-con-docker-recomendado)
+8. [Ejecución Local (Manual)](#-ejecución-local-manual)
+9. [Testing](#-testing)
 
-Automatización de flujos (recordatorios, notificaciones y registro de progreso con n8n).
+---
 
-Dashboard interactivo para seguimiento de métricas.
+## 📖 Descripción General
 
-Roles de Usuario
+El proyecto **TPTUTOR** tiene como finalidad apoyar el proceso educativo promoviendo la comprensión, el razonamiento y la argumentación lógica.
 
-Estudiantes: Practican lectura, reciben feedback inmediato de la IA.
+Este sistema está orientado a:
+* **Estudiantes:** Reciben retroalimentación inmediata y práctica personalizada.
+* **Docentes:** Asignan textos, revisan estadísticas y generan reportes.
 
-Docentes: Asignan textos, revisan estadísticas y generan reportes.
+---
 
-🏗 Arquitectura y Stack Tecnológico
+## 🎯 Objetivos
 
-El proyecto sigue una arquitectura MERN (MongoDB, Express, React, Node.js) contenerizada, priorizando la escalabilidad y el mantenimiento.
+1.  Desarrollar un sistema **innovador y escalable** para la lectura crítica.
+2.  Integrar **Inteligencia Artificial (Gemma:2b)** para el análisis de textos.
+3.  Implementar **automatización** de tareas con n8n.
+4.  Aplicar metodologías ágiles y buenas prácticas de ingeniería de software.
 
-Diagrama de Arquitectura
+---
 
+## 🏗 Arquitectura del Sistema
+
+La arquitectura sigue el modelo **MERN** contenerizado:
+```mermaid
 graph TD
-    User((Usuario)) -->|Navegador| Client[Frontend - React + Vite]
+    User((Usuario)) --> A[Frontend - React/Vite]
+    A --> B[Backend - Express API]
+    B --> C[(Base de Datos - MongoDB Atlas)]
+    B --> D[Automatización - n8n Webhooks]
+    B --> E["IA Local - Ollama (Gemma:2b)"]
+```
+
+## 🛠 Tecnologías Principales
+
+| Área | Tecnologías |
+| :--- | :--- |
+| **Frontend** | React.js, Redux Toolkit, Vite, TailwindCSS (opcional) |
+| **Backend** | Node.js, Express.js, JWT, Multer |
+| **Base de Datos** | MongoDB Atlas (Mongoose) |
+| **IA** | Ollama (Modelo: gemma:2b), Hugging Face Transformers |
+| **DevOps** | Docker, Docker Compose |
+| **Testing** | Jest, Supertest |
+
+## ⚙️ Pre-requisitos
+
+Antes de comenzar, asegúrate de tener instalado:
+
+### 1. Docker Desktop
+Debe incluir **Docker Compose**. Es esencial para la contenerización.
+
+### 2. Node.js (v18+)
+*Solo necesario si vas a correr el proyecto manualmente sin Docker.*
+
+### 3. Ollama
+Es el motor de Inteligencia Artificial local.
+* Descarga Ollama desde [ollama.com](https://ollama.com).
+* Ejecuta este comando en tu terminal:
+    ```bash
+    ollama pull gemma:2b
+    ```
+    > **Nota:** La IA corre en tu máquina local (Host) y Docker se conecta a ella.
+
+### 4. Cuenta en MongoDB Atlas
+Necesitarás crear un clúster gratuito para obtener tu **URI de conexión**.
+
+---
+
+## 🚀 Instalación y Configuración
+
+### 1. Clonar el repositorio
+
+```bash
+git clone [https://github.com/tu-usuario/tptutor.git](https://github.com/tu-usuario/tptutor.git)
+cd tptutor
+```
+
+### 2. Configurar Variables de Entorno (Backend)
+Navega a la carpeta backend y crea un archivo .env copiando el siguiente contenido.
+
+Importante: Asegúrate de reemplazar <usuario> y <password> con tus credenciales reales de Mongo Atlas.
+    ```bash
     
-    subgraph Docker Network
-        Client -->|HTTP/REST| API[Backend - Express API]
-        API -->|Mongoose| DB[(MongoDB Atlas)]
-    end
+    # Archivo: backend/.env
+    PORT=5000
+    
+    # Conexión a Base de Datos (MongoDB Atlas)
+    MONGO_URI=mongodb+srv://<usuario>:<password>@cluster.mongodb.net/tptutor_db
+    
+    # Seguridad
+    JWT_SECRET=tu_palabra_secreta_super_segura
+    
+    # Configuración de IA (Apunta al Host desde Docker)
+    OLLAMA_BASE_URL=[http://host.docker.internal:11434](http://host.docker.internal:11434)
+    
+    # Configuración de Automatización (Webhook de n8n)
+    N8N_WEBHOOK_READING_COMPLETED=[http://host.docker.internal:5678/webhook/tptutor/reading-completed](http://host.docker.internal:5678/webhook/tptutor/reading-completed)
+    ```
 
-    subgraph Host Machine / Servicios Externos
-        API -->|Webhook| N8N[Automatización - n8n]
-        API -->|Inference| AI[IA Local - Ollama]
-    end
+### 3. Configurar Variables de Entorno (Frontend)
+Navega a la carpeta frontend y crea un archivo .env:
 
+```bash
+# Archivo: frontend/.env
+VITE_API_TARGET=http://localhost:5000
+```
 
-Tecnologías Principales
+## Ejecución con Docker (Recomendado)
+Esta opción levanta toda la aplicación (Frontend + Backend) automáticamente y es la más estable.
 
-Área
+### 1. Iniciar Ollama en tu PC
+Asegúrate de que Ollama esté corriendo en segundo plano en tu sistema operativo (no en Docker).
 
-Tecnología
+### 2. Levantar contenedores
+Ejecuta en la raíz del proyecto:
 
-Propósito
+```bash
 
-Frontend
-
-React 19, Vite, TailwindCSS
-
-Interfaz de usuario rápida y responsiva.
-
-Backend
-
-Node.js, Express.js
-
-API RESTful, gestión de lógica de negocio.
-
-Base de Datos
-
-MongoDB Atlas
-
-Persistencia de datos en la nube.
-
-IA
-
-Ollama (Gemma:2b), HuggingFace
-
-Procesamiento de lenguaje natural local.
-
-DevOps
-
-Docker, Docker Compose
-
-Orquestación de entornos.
-
-QA
-
-Jest, Cypress
-
-Pruebas unitarias, integración y E2E.
-
-⚠️ Requisitos Previos (CRÍTICO)
-
-Debido a la naturaleza híbrida de la arquitectura (Contenedores + Servicios Locales), es obligatorio tener los siguientes servicios corriendo en tu máquina host antes de iniciar Docker.
-
-1. Ollama (Inteligencia Artificial)
-
-El backend se comunica con Ollama para la inferencia de IA.
-
-Descargar e instalar Ollama.
-
-Descargar el modelo gemma:2b (liviano y eficiente):
-
-ollama pull gemma:2b
-
-
-Iniciar el servidor:
-
-ollama serve
-
-
-Debe estar escuchando en el puerto 11434.
-
-2. n8n (Automatización)
-
-Gestión de webhooks para notificaciones y reportes.
-
-Instalar y ejecutar n8n (versión de escritorio o npm).
-
-Asegurar que escucha en el puerto 5678.
-
-Configuración del Webhook:
-
-URL: http://localhost:5678/webhook/tptutor/reading-completed
-
-Método: POST
-
-🔧 Instalación y Despliegue
-
-1. Variables de Entorno
-
-Crear un archivo .env en la carpeta backend/:
-
-PORT=5000
-MONGO_URI=mongodb+srv://<usuario>:<password>@cluster.mongodb.net/tptutor
-JWT_SECRET=tu_clave_secreta_super_segura
-# Nota: OLLAMA_BASE_URL y N8N se configuran en docker-compose para apuntar al host
-
-
-2. Ejecución con Docker (Recomendado)
-
-El proyecto utiliza host.docker.internal para conectar los contenedores con Ollama y n8n en tu máquina.
-
-# Construir imágenes y levantar servicios
 docker-compose up --build
-
-
+3. Acceder a la aplicación
 Frontend: http://localhost:5173
 
-Backend: http://localhost:5000
+Backend API: http://localhost:5000
+```
 
-3. Ejecución Manual (Modo Desarrollo)
+## Ejecución Local (Manual)
+Si prefieres no usar Docker, puedes ejecutar cada parte por separado en terminales distintas.
 
-Backend:
+### 1. Backend
 
+```bash
 cd backend
 npm install
 npm run dev
+```
+### 2. Frontend
 
-
-Frontend:
-
+```bash
 cd frontend
 npm install
 npm run dev
+```
+## 🧪 Testing
+El proyecto utiliza Jest para realizar pruebas unitarias y de integración en el servidor.
 
+Ejecutar tests
 
-🧪 Estrategia de QA y Testing
-
-El proyecto sigue una estrategia de testing piramidal estricta.
-
-✅ Backend: Unit & Integration Testing (Jest)
-
-Probamos controladores, servicios y utilidades.
-
+```bash
 cd backend
-
-# Ejecutar todos los tests
 npm test
-
-# Ver reporte de cobertura de código
-npm run test -- --coverage
-
-
-✅ Frontend: Unit Testing (Jest + React Testing Library)
-
-Probamos componentes aislados y hooks personalizados.
-
-cd frontend
-npm test
-
-
-✅ E2E: End-to-End Testing (Cypress)
-
-Simulamos el flujo completo del usuario real en el navegador.
-Requisito: El servidor de desarrollo (npm run dev) debe estar corriendo en http://localhost:5173.
-
-cd frontend
-
-# Modo Interactivo (Abre la UI de Cypress)
-npm run test:e2e:open
-
-# Modo Headless (Para CI/CD - Ejecuta en consola)
-npm run test:e2e:run
-
-
-📂 Estructura del Proyecto
-
-/
-├── backend/                # API REST Express
-│   ├── src/
-│   │   ├── controllers/    # Lógica de los endpoints
-│   │   ├── models/         # Schemas de Mongoose
-│   │   ├── routes/         # Definición de rutas API
-│   │   ├── services/       # Lógica compleja (IA, PDF)
-│   │   └── index.js        # Punto de entrada
-│   ├── tests/              # Tests unitarios de Backend
-│   ├── Dockerfile          # Configuración de imagen Docker
-│   └── package.json
-│
-├── frontend/               # SPA React + Vite
-│   ├── src/
-│   │   ├── components/     # Componentes UI reutilizables
-│   │   ├── pages/          # Vistas principales
-│   │   ├── context/        # Estado global (Context API)
-│   │   └── hooks/          # Custom Hooks
-│   ├── cypress/            # Tests E2E
-│   │   └── e2e/            # Escenarios de prueba
-│   ├── Dockerfile          # Configuración de imagen Docker
-│   └── package.json
-│
-└── docker-compose.yml      # Orquestación de servicios
-
-
-Nota para Desarrolladores: Este proyecto utiliza ES Modules (import/export) tanto en backend como en frontend. Asegúrese de mantener esta convención al crear nuevos archivos.
+Esto generará un reporte de cobertura en la consola indicando qué módulos pasaron las pruebas.
+```
